@@ -67,13 +67,13 @@ module.exports = {
     // ── Create Permissions ────────────────────────────────────
     const permMap = {};
     for (const [name, desc] of permDefs) {
-      let existing = await findOne('Permissions', 'Name', name);
+      let existing = await findOne('"Permissions"', '"Name"', name);
       if (!existing) {
         await q(
-          `INSERT INTO Permissions (Name, Description, CreatedAt, UpdatedAt) VALUES (:name, :desc, NOW(), NOW())`,
+          `INSERT INTO "Permissions" ("Name", "Description", "CreatedAt", "UpdatedAt") VALUES (:name, :desc, NOW(), NOW())`,
           { replacements: { name, desc } }
         );
-        existing = await findOne('Permissions', 'Name', name);
+        existing = await findOne('"Permissions"', '"Name"', name);
       }
       permMap[name] = existing.PermissionId;
     }
@@ -89,34 +89,32 @@ module.exports = {
 
     const roleMap = {};
     for (const [name, desc] of roleDefs) {
-      let existing = await findOne('Roles', 'Name', name);
+      let existing = await findOne('"Roles"', '"Name"', name);
       if (!existing) {
         await q(
-          `INSERT INTO Roles (Name, Description, CreatedAt, UpdatedAt) VALUES (:name, :desc, NOW(), NOW())`,
+          `INSERT INTO "Roles" ("Name", "Description", "CreatedAt", "UpdatedAt") VALUES (:name, :desc, NOW(), NOW())`,
           { replacements: { name, desc } }
         );
-        existing = await findOne('Roles', 'Name', name);
+        existing = await findOne('"Roles"', '"Name"', name);
       }
       roleMap[name] = existing.RoleId;
     }
 
     // ── Clear existing role-permission mappings ──────────────
-    await q(`DELETE FROM RolePermissions`, { type: Sequelize.QueryTypes.DELETE });
+    await q(`DELETE FROM "RolePermissions"`, { type: Sequelize.QueryTypes.DELETE });
 
     // ── Role → Permission Mappings ──────────────────────────
     const addRp = async (roleName, permName) => {
       const roleId = roleMap[roleName];
       const permId = permMap[permName];
       if (roleId && permId) {
-        const existing = await findOne('RolePermissions', 'RoleId', roleId);
-        // Check both columns
         const [rows] = await q(
-          `SELECT 1 FROM RolePermissions WHERE RoleId = :roleId AND PermissionId = :permId`,
+          `SELECT 1 FROM "RolePermissions" WHERE "RoleId" = :roleId AND "PermissionId" = :permId`,
           { replacements: { roleId, permId }, type: Sequelize.QueryTypes.SELECT }
         );
         if (!rows) {
           await q(
-            `INSERT INTO RolePermissions (RoleId, PermissionId, CreatedAt, UpdatedAt) VALUES (:roleId, :permId, NOW(), NOW())`,
+            `INSERT INTO "RolePermissions" ("RoleId", "PermissionId", "CreatedAt", "UpdatedAt") VALUES (:roleId, :permId, NOW(), NOW())`,
             { replacements: { roleId, permId } }
           );
         }
@@ -189,16 +187,16 @@ module.exports = {
 
     for (const [name, email, pass, roleName] of userDefs) {
       const roleId = roleMap[roleName];
-      const existing = await findOne('Users', 'Email', email);
+      const existing = await findOne('"Users"', '"Email"', email);
       if (!existing) {
         await q(
-          `INSERT INTO Users (Name, Email, Password, RoleId, CreatedAt, UpdatedAt) VALUES (:name, :email, :pass, :roleId, NOW(), NOW())`,
+          `INSERT INTO "Users" ("Name", "Email", "Password", "RoleId", "CreatedAt", "UpdatedAt") VALUES (:name, :email, :pass, :roleId, NOW(), NOW())`,
           { replacements: { name, email, pass, roleId } }
         );
         console.log(`  [Seed] Created user ${email}`);
       } else {
         await q(
-          `UPDATE Users SET Password = :pass, RoleId = :roleId, UpdatedAt = NOW() WHERE Email = :email`,
+          `UPDATE "Users" SET "Password" = :pass, "RoleId" = :roleId, "UpdatedAt" = NOW() WHERE "Email" = :email`,
           { replacements: { pass, roleId, email } }
         );
         console.log(`  [Seed] Updated password/role for existing user ${email}`);
@@ -207,9 +205,9 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.sequelize.query('DELETE FROM Users', { type: Sequelize.QueryTypes.DELETE });
-    await queryInterface.sequelize.query('DELETE FROM RolePermissions', { type: Sequelize.QueryTypes.DELETE });
-    await queryInterface.sequelize.query('DELETE FROM Permissions', { type: Sequelize.QueryTypes.DELETE });
-    await queryInterface.sequelize.query('DELETE FROM Roles', { type: Sequelize.QueryTypes.DELETE });
+    await queryInterface.sequelize.query('DELETE FROM "Users"', { type: Sequelize.QueryTypes.DELETE });
+    await queryInterface.sequelize.query('DELETE FROM "RolePermissions"', { type: Sequelize.QueryTypes.DELETE });
+    await queryInterface.sequelize.query('DELETE FROM "Permissions"', { type: Sequelize.QueryTypes.DELETE });
+    await queryInterface.sequelize.query('DELETE FROM "Roles"', { type: Sequelize.QueryTypes.DELETE });
   },
 };
