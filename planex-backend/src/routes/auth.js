@@ -15,7 +15,7 @@ const rateLimit      = require('express-rate-limit');
 const { User, Role, Session } = require('../database/models');
 const logService     = require('../services/logService');
 const auth           = require('../middleware/auth');
-const { sendVerificationCode } = require('../services/emailService');
+const { sendVerificationCode, sendPasswordResetEmail } = require('../services/emailService');
 
 const router = Router();
 
@@ -369,18 +369,12 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       { where: { UserId: user.UserId } }
     );
 
-    // In production, send email with reset link
-    // For development, log the token to console
-    // Use the Origin header from the request (dynamic port), fallback to env var or default
+    // Build the frontend reset URL using Origin header, env var, or default
     const frontendUrl = req.get('Origin') || process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
-    console.log(`\n  ┌──────────────────────────────────────────────────────┐`);
-    console.log(`  │  📧 PASSWORD RESET REQUEST                          │`);
-    console.log(`  │  User: ${email.padEnd(39)}│`);
-    console.log(`  │  Token: ${resetToken.padEnd(37)}│`);
-    console.log(`  │  URL:  ${resetUrl.padEnd(39)}│`);
-    console.log(`  │  Expires: ${resetExpires.toISOString().padEnd(30)}│`);
-    console.log(`  └──────────────────────────────────────────────────────┘\n`);
+
+    // Send the reset link by email (logs to console in dev, sends via SMTP in production)
+    await sendPasswordResetEmail(email, user.Name, resetUrl, resetExpires);
 
     // Log the password reset request
     await logService.log({
@@ -392,7 +386,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       userAgent: req.headers['user-agent'],
     }).catch(() => {});
 
-    // In dev mode, return the reset URL so the frontend can display it
+    // In dev mode, also return the reset URL so the frontend can display it
     const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
     res.json({
       message: 'If that email exists, a password reset link has been sent.',
