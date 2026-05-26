@@ -37,13 +37,14 @@ function paginateArray(items, page = 1, limit = 5) {
 
 // ── USER SEARCH for collaborator autocomplete ─────────────
 // Available to all authenticated users
+// Uses ILIKE for case-insensitive matching on PostgreSQL
 router.get('/users/search', async (req, res, next) => {
   try {
     const { q } = req.query
     if (!q || q.length < 1) return res.json([])
     const users = await User.findAll({
       where: {
-        Name: { [Op.like]: `%${q}%` },
+        Name: { [Op.iLike]: `%${q}%` },
       },
       attributes: ['UserId', 'Name', 'Email'],
       raw: true,
@@ -145,8 +146,12 @@ router.get('/statistics', requirePermission('tasks:read'), async (req, res, next
     const collaborative = tasks.filter(t => t.collaborators && t.collaborators.length > 0).length
     const solo       = total - collaborative
 
-    const byPriority = { High: 0, Medium: 0, Low: 0 }
-    tasks.forEach(t => { if (byPriority[t.priority] !== undefined) byPriority[t.priority]++ })
+    // Normalise priority keys to lowercase for frontend consistency
+    const byPriority = { high: 0, medium: 0, low: 0 }
+    tasks.forEach(t => {
+      const key = (t.priority || 'medium').toLowerCase()
+      if (byPriority[key] !== undefined) byPriority[key]++
+    })
 
     const monthMap = {}
     tasks.forEach(t => {

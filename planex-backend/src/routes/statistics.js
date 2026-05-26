@@ -16,7 +16,23 @@ router.use(authenticate, updateLastActivity, requirePermission('tasks:read'))
 // ── GET /api/statistics ─────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const tasks = await taskRepo.findAll()
+    const { userId, userName, isAdmin } = req.query
+    const admin = isAdmin === 'true'
+
+    // Per-user filtering: admin sees all, non-admin sees own + collaborative tasks
+    let tasks
+    if (admin) {
+      tasks = await taskRepo.findAll({ isAdmin: true })
+    } else {
+      const myTasks = await taskRepo.findAll({ userId: userId ? Number(userId) : undefined })
+      const collabTasks = userName ? await taskRepo.findByCollaborator(userName) : []
+      const seen = new Set()
+      tasks = [...myTasks, ...collabTasks].filter(t => {
+        if (seen.has(t.id)) return false
+        seen.add(t.id)
+        return true
+      })
+    }
 
     const total          = tasks.length
     const completed      = tasks.filter(t => t.isCompleted).length
@@ -24,9 +40,11 @@ router.get('/', async (req, res) => {
     const collaborative  = tasks.filter(t => t.collaborators && t.collaborators.length > 0).length
     const solo           = total - collaborative
 
-    const byPriority = { High: 0, Medium: 0, Low: 0 }
+    // Normalise priority keys to lowercase for frontend consistency
+    const byPriority = { high: 0, medium: 0, low: 0 }
     tasks.forEach(t => {
-      if (byPriority[t.priority] !== undefined) byPriority[t.priority]++
+      const key = (t.priority || 'medium').toLowerCase()
+      if (byPriority[key] !== undefined) byPriority[key]++
     })
 
     const monthMap = {}
@@ -54,10 +72,10 @@ router.get('/', async (req, res) => {
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
     const collaborativeRate = total > 0 ? Math.round((collaborative / total) * 100) : 0
 
-    const userId = req.query.userId ? Number(req.query.userId) : null
-    if (userId) {
+    const uid = userId ? Number(userId) : (req.user ? req.user.UserId : null)
+    if (uid) {
       logService.log({
-        userId,
+        userId: uid,
         action: logService.Actions.VIEW_STATISTICS,
         resourceType: 'Statistics',
         ipAddress: req.ip,
