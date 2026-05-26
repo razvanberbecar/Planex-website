@@ -1,0 +1,210 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #2d3445;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #2d3445;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.page-enter {
+  animation: fadeSlideIn 0.24s ease forwards;
+}
+
+.page-exit {
+  animation: fadeSlideOut 0.24s ease forwards;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+  transition: transform 0.15s ease;
+}
+
+button:not(:disabled):active {
+  transform: translateY(0px);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  box-shadow: 0 0 0 3px rgba(58, 69, 88, 0.25);
+  transition: box-shadow 0.2s ease;
+}
+
+
+@media (max-width: 900px) {
+
+  aside {
+    width: 60px !important;
+    min-width: 60px !important;
+  }
+
+  aside span:not(:first-child) {
+    display: none;
+  }
+
+  aside .user-name {
+    display: none;
+  }
+
+  /* Stack title + controls vertically */
+  .controls-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  /* Full-width search bar */
+  .search-bar {
+    width: 100% !important;
+  }
+
+  /* Reduce table font */
+  table {
+    font-size: 0.8rem;
+  }
+
+  td, th {
+    padding: 8px 10px !important;
+  }
+
+  /* Stat cards wrap */
+  .stat-cards {
+    flex-direction: column;
+  }
+
+  /* Login/Register card full width */
+  .auth-card {
+    max-width: 100% !important;
+    border-radius: 12px !important;
+  }
+
+  main {
+    padding: 24px 20px !important;
+  }
+}
+
+/* Mobile (≤ 600px) */
+@media (max-width: 600px) {
+
+  h1 {
+    font-size: 1.4rem !important;
+  }
+
+  /* Make table horizontally scrollable instead of hiding columns */
+  div[style*="position: 'relative'"] table,
+  table {
+    width: min-content;
+    min-width: 100%;
+  }
+
+  /* Wrap table in scrollable container */
+  main > div:has(table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  /* Charts stack vertically */
+  .charts-row {
+    flex-direction: column !important;
+  }
+
+  /* Watermark hidden on mobile */
+  .watermark {
+    display: none;
+  }
+}
+
+/* Very small screens (≤ 480px) */
+@media (max-width: 480px) {
+
+  /* Hide sidebar completely, show only avatar */
+  aside {
+    width: 48px !important;
+    min-width: 48px !important;
+    padding: 12px 0 !important;
+  }
+
+  aside > div:first-child {
+    padding: 0 8px 12px !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+
+  aside > div:first-child > div:first-child {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.6rem !important;
+  }
+
+  aside button,
+  aside > div:not(:first-child) button {
+    padding: 10px 8px !important;
+    justify-content: center !important;
+  }
+
+  aside button span:last-child {
+    display: none !important;
+  }
+
+  /* Reduce main padding even more */
+  main {
+    padding: 16px 12px !important;
+  }
+
+  /* Smaller h1 */
+  h1 {
+    font-size: 1.2rem !important;
+  }
+
+  /* Full-width inputs on detail form */
+  input, textarea, select {
+    font-size: 0.85rem !important;
+    padding: 12px 14px !important;
+  }
+
+  /* Stack collaborator chips */
+  .collab-chips {
+    flex-wrap: wrap;
+  }
+}
