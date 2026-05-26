@@ -369,8 +369,9 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       { where: { UserId: user.UserId } }
     );
 
-    // Build the frontend reset URL using Origin header, env var, or default
-    const frontendUrl = req.get('Origin') || process.env.FRONTEND_URL || 'http://localhost:5173';
+    // Build the frontend reset URL: FRONTEND_URL env var takes priority,
+    // then Origin header (for local dev), then fallback default.
+    const frontendUrl = process.env.FRONTEND_URL || req.get('Origin') || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
     // Send the reset link by email (logs to console in dev, sends via SMTP in production)
