@@ -260,36 +260,35 @@ router.put('/:id', idParamRule, taskUpdateRules, handleValidation, requirePermis
 })
 
 // ── DELETE ─────────────────────────────────────────────────
-// Requires tasks:delete permission
-router.delete('/:id', idParamRule, handleValidation, requirePermission('tasks:delete'), async (req, res, next) => {
+// Authorisation: admin/manager can delete any task;
+// regular users can only delete tasks they created.
+router.delete('/:id', idParamRule, handleValidation, async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const { userId, isAdmin } = req.query
-    const admin = isAdmin === 'true'
+
+    // Fetch the task to check ownership
+    const task = await taskRepo.findById(id)
+    if (!task) return res.status(404).json({ error: 'Task not found.' })
+
+    const currentUserId = req.user.UserId
+    const isAdmin = req.user.roleName === 'admin'
 
     // Non-admin can only delete their own tasks
-    if (!admin && userId) {
-      const task = await taskRepo.findById(id)
-      if (!task) return res.status(404).json({ error: 'Task not found.' })
-      if (Number(task.createdBy) !== Number(userId)) {
-        return res.status(403).json({ error: 'You can only delete your own tasks.' })
-      }
+    if (!isAdmin && Number(task.createdBy) !== Number(currentUserId)) {
+      return res.status(403).json({ error: 'You can only delete your own tasks.' })
     }
 
     const deleted = await taskRepo.remove(id)
     if (!deleted) return res.status(404).json({ error: 'Task not found.' })
 
-    const uid = userId ? Number(userId) : (req.user ? req.user.UserId : null)
-    if (uid) {
-      logService.log({
-        userId: uid,
-        action: logService.Actions.DELETE_TASK,
-        resourceType: 'Task',
-        resourceId: id,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-      }).catch(err => console.error('[Tasks] Log error:', err.message))
-    }
+    logService.log({
+      userId: currentUserId,
+      action: logService.Actions.DELETE_TASK,
+      resourceType: 'Task',
+      resourceId: id,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    }).catch(err => console.error('[Tasks] Log error:', err.message))
 
     res.status(204).send()
   } catch (err) {
