@@ -12,6 +12,9 @@ const { authenticate, updateLastActivity } = require('./middleware/auth')
 
 const app = express()
 
+// ── Trust Render's proxy (required for express-rate-limit behind reverse proxy) ──
+app.set('trust proxy', 1);
+
 // ── CORS (allow frontend from any origin in dev) ────────────
 app.use(cors({
   origin: true,
