@@ -9,7 +9,13 @@ const config        = require('../config');
 const env    = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
-const sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, dbConfig);
+let sequelize;
+if (dbConfig.use_env_variable) {
+  // When DATABASE_URL is set, pass it as the first argument and the config object as the second
+  sequelize = new Sequelize(process.env[dbConfig.use_env_variable], dbConfig);
+} else {
+  sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, dbConfig);
+}
 
 // ── Import Models ───────────────────────────────────────────
 const TaskModel             = require('./Task');
