@@ -10,6 +10,7 @@ const subRepo    = require('../database/repositories/subtaskRepository')
 const logService = require('../services/logService')
 const { requirePermission } = require('../middleware/auth')
 const { body, param, validationResult } = require('express-validator')
+const { broadcastTaskEvent } = require('../websocket/wsServer')
 
 function validate(req, res, next) {
   const errors = validationResult(req)
@@ -40,9 +41,11 @@ router.get('/', requireTask, requirePermission('tasks:read'), async (req, res) =
   res.json(subtasks)
 })
 
-// POST /api/tasks/:taskId/subtasks — requires tasks:create
-router.post('/', requireTask, [titleRule], validate, requirePermission('tasks:create'), async (req, res) => {
+// POST /api/tasks/:taskId/subtasks — requires subtasks:create
+router.post('/', requireTask, [titleRule], validate, requirePermission('subtasks:create'), async (req, res) => {
   const subtask = await subRepo.create(req.taskId, req.body)
+
+  broadcastTaskEvent('SUBTASK_CREATED', { taskId: req.taskId, subtask })
 
   const userId = getUserId(req)
   if (userId) {
@@ -64,12 +67,14 @@ router.post('/', requireTask, [titleRule], validate, requirePermission('tasks:cr
 router.put('/:subtaskId', requireTask, [idRule,
   body('title').optional().trim().notEmpty().isLength({ max: 200 }),
   body('isCompleted').optional().isBoolean(),
-], validate, requirePermission('tasks:update'), async (req, res) => {
+], validate, requirePermission('subtasks:update'), async (req, res) => {
   const id = parseInt(req.params.subtaskId)
   const sub = await subRepo.getById(id)
   if (!sub) return res.status(404).json({ error: 'Subtask not found.' })
   if (sub.taskId !== req.taskId) return res.status(400).json({ error: 'Subtask does not belong to this task.' })
   const updated = await subRepo.update(id, req.body)
+
+  broadcastTaskEvent('SUBTASK_UPDATED', { taskId: req.taskId, subtask: updated })
 
   const userId = getUserId(req)
   if (userId) {
@@ -88,12 +93,14 @@ router.put('/:subtaskId', requireTask, [idRule,
 })
 
 // DELETE /api/tasks/:taskId/subtasks/:subtaskId — requires tasks:delete
-router.delete('/:subtaskId', requireTask, [idRule], validate, requirePermission('tasks:delete'), async (req, res) => {
+router.delete('/:subtaskId', requireTask, [idRule], validate, requirePermission('subtasks:delete'), async (req, res) => {
   const id = parseInt(req.params.subtaskId)
   const sub = await subRepo.getById(id)
   if (!sub) return res.status(404).json({ error: 'Subtask not found.' })
   if (sub.taskId !== req.taskId) return res.status(400).json({ error: 'Subtask does not belong to this task.' })
   await subRepo.remove(id)
+
+  broadcastTaskEvent('SUBTASK_DELETED', { taskId: req.taskId, id })
 
   const userId = getUserId(req)
   if (userId) {

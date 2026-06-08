@@ -11,6 +11,8 @@ import MasterView from './views/MasterView'
 import DetailView from './views/DetailView'
 import Statistics from './views/Statistics'
 import AdminView from './views/AdminView'
+import KanbanView from './views/KanbanView'
+import CalendarView from './views/CalendarView'
 import ChatPanel from './components/ChatPanel'
 import InactivityWarning from './components/InactivityWarning'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -31,6 +33,8 @@ function AppRoutes() {
       <Route path="/tasks/:id"   element={<ProtectedRoute><DetailView /></ProtectedRoute>} />
       <Route path="/statistics"  element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
       <Route path="/admin"       element={<ProtectedRoute><AdminView /></ProtectedRoute>} />
+      <Route path="/kanban"      element={<ProtectedRoute><KanbanView /></ProtectedRoute>} />
+      <Route path="/calendar"    element={<ProtectedRoute><CalendarView /></ProtectedRoute>} />
     </Routes>
   )
 }

@@ -75,6 +75,30 @@ export function ChatProvider({ children }) {
           case 'USER_LEFT':
             setOnlineUsers(prev => prev.filter(u => u.userId !== msg.payload.userId))
             break
+
+          case 'TASK_CREATED':
+            window.dispatchEvent(new CustomEvent('task:created', { detail: msg.payload }))
+            break
+
+          case 'TASK_UPDATED':
+            window.dispatchEvent(new CustomEvent('task:updated', { detail: msg.payload }))
+            break
+
+          case 'TASK_DELETED':
+            window.dispatchEvent(new CustomEvent('task:deleted', { detail: msg.payload }))
+            break
+
+          case 'SUBTASK_CREATED':
+            window.dispatchEvent(new CustomEvent('subtask:created', { detail: msg.payload }))
+            break
+
+          case 'SUBTASK_UPDATED':
+            window.dispatchEvent(new CustomEvent('subtask:updated', { detail: msg.payload }))
+            break
+
+          case 'SUBTASK_DELETED':
+            window.dispatchEvent(new CustomEvent('subtask:deleted', { detail: msg.payload }))
+            break
         }
       } catch { /* ignore malformed messages */ }
     }

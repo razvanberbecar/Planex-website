@@ -1,6 +1,5 @@
 const { WebSocketServer } = require('ws')
 const { getDb } = require('../database/mongodb')
-const logService = require('../services/logService')
 
 let wss = null
 
@@ -102,14 +101,6 @@ function attachWebSocket(httpServer) {
             clients.set(ws, { userId, userName })
             console.log(`[WS] User "${userName}" (ID: ${userId}) joined`)
 
-            // Log the WS join
-            logService.log({
-              userId: Number(userId),
-              action: logService.Actions.WS_JOIN,
-              resourceType: 'WebSocket',
-              details: { userName },
-            }).catch(err => console.error('[WS] Log error:', err.message))
-
             // ── Send the list of already-online users to the new joiner ──
             const onlineList = []
             wss.clients.forEach(client => {
@@ -153,14 +144,6 @@ function attachWebSocket(httpServer) {
               text.trim()
             )
 
-            // Log the chat message
-            logService.log({
-              userId: Number(clientInfo.userId),
-              action: logService.Actions.WS_CHAT_MESSAGE,
-              resourceType: 'Chat',
-              details: { room: room || 'general', messageLength: text.trim().length },
-            }).catch(err => console.error('[WS] Log error:', err.message))
-
             const msgStr = JSON.stringify({
               type: 'CHAT_MESSAGE',
               payload: saved,
@@ -194,4 +177,12 @@ function attachWebSocket(httpServer) {
   return wss
 }
 
-module.exports = { attachWebSocket, broadcast }
+function broadcastTaskEvent(type, payload) {
+  if (!wss) return
+  const message = JSON.stringify({ type, payload })
+  wss.clients.forEach(client => {
+    if (client.readyState === 1) client.send(message)
+  })
+}
+
+module.exports = { attachWebSocket, broadcast, broadcastTaskEvent }

@@ -83,6 +83,19 @@ export default function MasterView() {
     loadPage(page)
   }, [page, user?.UserId])
 
+  // Live updates from other users via WebSocket
+  useEffect(() => {
+    const reload = () => loadPage(page)
+    window.addEventListener('task:created', reload)
+    window.addEventListener('task:updated', reload)
+    window.addEventListener('task:deleted', reload)
+    return () => {
+      window.removeEventListener('task:created', reload)
+      window.removeEventListener('task:updated', reload)
+      window.removeEventListener('task:deleted', reload)
+    }
+  }, [page, loadPage])
+
   // ── SORT (client side, on current page) ───────────────
   const cycleSortOrder = () => setSortOrder(prev => prev === 'none' ? 'high' : prev === 'high' ? 'low' : 'none')
   const sortLabel = { none: '⇅ Priority', high: '↑ High→Low', low: '↓ Low→High' }
@@ -129,25 +142,27 @@ export default function MasterView() {
             </div>
             <div style={{ fontSize: '0.65rem', color: '#8a9e6e', textTransform: 'uppercase', letterSpacing: 1 }}>
               {user?.role?.Name || 'user'}
-              {isAdmin && ' ⭐'}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', marginTop: 10, flex: 1 }}>
           {isAdmin && (
-            <SidebarItem icon="🌐" label="All Tasks"    active={filter === 'all'}          onClick={() => changeFilter('all')} />
+            <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} label="All Tasks" active={filter === 'all'} onClick={() => changeFilter('all')} />
           )}
-          <SidebarItem icon="☐"  label="Active"        active={filter === 'active'}        onClick={() => changeFilter('active')} />
-          <SidebarItem icon="☑"  label="Completed"     active={filter === 'completed'}     onClick={() => changeFilter('completed')} />
-          <SidebarItem icon="👥" label="Collaborative" active={filter === 'collaborative'} onClick={() => changeFilter('collaborative')} />
-          <SidebarItem icon="+"  label="Add Task"                                          onClick={() => navigate('/tasks/new')} />
-          <SidebarItem icon="📊" label="Statistics"                                        onClick={() => navigate('/statistics')} />
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>} label="Active" active={filter === 'active'} onClick={() => changeFilter('active')} />
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>} label="Completed" active={filter === 'completed'} onClick={() => changeFilter('completed')} />
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} label="Collaborative" active={filter === 'collaborative'} onClick={() => changeFilter('collaborative')} />
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>} label="Add Task" onClick={() => navigate('/tasks/new')} />
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>} label="Kanban" onClick={() => navigate('/kanban')} />
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} label="Calendar" onClick={() => navigate('/calendar')} />
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>} label="Statistics" onClick={() => navigate('/statistics')} />
           {isAdmin && (
-            <SidebarItem icon="🛡️" label="Admin Panel"                                     onClick={() => navigate('/admin')} />
+            <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>} label="Admin Panel" onClick={() => navigate('/admin')} />
           )}
         </div>
         <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', color: '#e2e8f0', fontSize: '0.9rem', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', width: '100%', borderTop: '1px solid rgba(255,255,255,0.1)', fontFamily: FONT }}>
-          ⇥ Logout
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
         </button>
       </aside>
 
@@ -174,9 +189,9 @@ export default function MasterView() {
 
             {/* Search */}
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f5f5d0', borderRadius: 30, padding: '8px 16px', gap: 8, width: 220 }}>
-              <span>🔍</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               <input type="text" placeholder="Search tasks..." value={search} onChange={e => setSearch(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: FONT, fontSize: '0.85rem', color: '#222', width: '100%' }} />
-              {search && <span onClick={() => setSearch('')} style={{ cursor: 'pointer', color: '#888' }}>✕</span>}
+              {search && <span onClick={() => setSearch('')} style={{ cursor: 'pointer', color: '#888' }}>×</span>}
             </div>
 
           </div>

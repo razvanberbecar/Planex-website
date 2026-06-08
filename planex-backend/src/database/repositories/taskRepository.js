@@ -19,6 +19,7 @@ function toFrontendTask(row, collabRows = []) {
     collaborators: collabRows.filter(c => c.TaskId === row.TaskId).map(c => c.Username),
     isCompleted:   Boolean(row.IsCompleted),
     priority:      row.Priority,
+    status:        row.Status || 'todo',
     createdBy:     row.CreatedBy || null,
     createdByName: row['creator.Name'] || null,
   };
@@ -152,6 +153,7 @@ async function update(id, data) {
     dueDate: 'DueDate',
     priority: 'Priority',
     isCompleted: 'IsCompleted',
+    status: 'Status',
   };
 
   const dbUpdates = {};
@@ -184,11 +186,22 @@ async function remove(id) {
   return true;
 }
 
-/** Toggle the isCompleted flag. */
+/** Toggle the isCompleted flag, keeping Status in sync. */
 async function toggleCompletion(id) {
   const task = await Task.findByPk(id);
   if (!task) return undefined;
-  await Task.update({ IsCompleted: !task.IsCompleted }, { where: { TaskId: id } });
+  const newCompleted = !task.IsCompleted;
+  const newStatus = newCompleted ? 'done' : 'todo';
+  await Task.update({ IsCompleted: newCompleted, Status: newStatus }, { where: { TaskId: id } });
+  return findById(id);
+}
+
+/** Update a task's kanban status (also syncs IsCompleted). */
+async function updateStatus(id, status) {
+  const task = await Task.findByPk(id);
+  if (!task) return undefined;
+  const isCompleted = status === 'done';
+  await Task.update({ Status: status, IsCompleted: isCompleted }, { where: { TaskId: id } });
   return findById(id);
 }
 
@@ -215,6 +228,7 @@ module.exports = {
   getById,
   create,
   update,
+  updateStatus,
   remove,
   toggleCompletion,
   getAll,

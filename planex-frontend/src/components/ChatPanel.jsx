@@ -31,8 +31,9 @@ export default function ChatPanel() {
     }
   }, [messages, chatOpen])
 
-  // Hide chat on login / register / welcome pages (must be AFTER all hooks)
-  const isPublicPage = ['/', '/register', '/welcome'].includes(location.pathname)
+  // Hide chat on public pages (must be AFTER all hooks)
+  const isPublicPage = ['/', '/register', '/forgot-password', '/welcome'].includes(location.pathname)
+    || location.pathname.startsWith('/reset-password')
   if (isPublicPage) return null
 
   // ── Send message ────────────────────────────────────────
@@ -69,7 +70,7 @@ export default function ChatPanel() {
           ...(isMobile ? styles.toggleTabMobile : {}),
         }}
       >
-        <span style={{ fontSize: '1.4rem' }}>💬</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         {connected && (
           <span style={styles.unreadDot} />
         )}
@@ -97,7 +98,7 @@ export default function ChatPanel() {
           <button onClick={toggleChat} style={styles.closeBtn} title="Close chat">
             —
           </button>
-          <span style={styles.headerTitle}>💬 Chat</span>
+          <span style={styles.headerTitle}>Chat</span>
           <span style={{
             ...styles.statusDot,
             backgroundColor: connected ? '#4ade80' : '#ef4444',
@@ -168,7 +169,7 @@ export default function ChatPanel() {
             onClick={handleSend}
             disabled={!connected || !input.trim()}
           >
-            ➤
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
           </button>
         </div>
       </div>

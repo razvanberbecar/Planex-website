@@ -171,7 +171,6 @@ async function cleanExpiredSessions() {
 async function authenticateJwt(token) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    // Check if session is still valid (not revoked)
     const session = await Session.findOne({
       where: { Token: token, IsRevoked: false },
     });
@@ -180,6 +179,9 @@ async function authenticateJwt(token) {
     }
     return decoded;
   } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return 'EXPIRED';
+    }
     return null;
   }
 }
@@ -243,14 +245,17 @@ async function authenticate(req, res, next) {
   const oauthId    = req.headers['x-oauth-id'];
 
   let userPayload = null;
+  let jwtExpired  = false;
 
   // ── Strategy 1: JWT Bearer token ─────────────────────────
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    userPayload = await authenticateJwt(token);
-    if (userPayload) {
+    const result = await authenticateJwt(token);
+    if (result === 'EXPIRED') {
+      jwtExpired = true;
+    } else if (result) {
       req.token = token;
-      return attachUser(req, res, next, userPayload);
+      return attachUser(req, res, next, result);
     }
   }
 
@@ -273,7 +278,10 @@ async function authenticate(req, res, next) {
   }
 
   // ── No valid authentication found ────────────────────────
-  return res.status(401).json({ error: 'Authentication required. Provide a valid JWT, API Key, or OAuth credentials.' });
+  if (jwtExpired) {
+    return res.status(401).json({ code: 'TOKEN_EXPIRED', error: 'Access token expired.' });
+  }
+  return res.status(401).json({ error: 'Authentication required.' });
 }
 
 /**

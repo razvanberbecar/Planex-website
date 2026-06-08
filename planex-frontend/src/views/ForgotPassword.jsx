@@ -8,7 +8,6 @@ export default function ForgotPassword() {
   const { forgotPassword } = useAuth()
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
-  const [devLink, setDevLink] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -19,14 +18,10 @@ export default function ForgotPassword() {
     }
     setError('')
     setMessage('')
-    setDevLink('')
     setLoading(true)
     try {
       const result = await forgotPassword(email)
       setMessage(result.message || 'If that email exists, a password reset link has been sent.')
-      if (result.devMode && result.devResetUrl) {
-        setDevLink(result.devResetUrl)
-      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -38,7 +33,6 @@ export default function ForgotPassword() {
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.header}>
-          <span style={styles.headerIcon}>🔑</span>
           <span style={styles.headerTitle}>Reset Password</span>
         </div>
         <div style={styles.divider} />
@@ -50,27 +44,12 @@ export default function ForgotPassword() {
             type="email"
             placeholder="Enter email address"
             value={email}
-            onChange={e => { setEmail(e.target.value); setError(''); setMessage(''); setDevLink('') }}
+            onChange={e => { setEmail(e.target.value); setError(''); setMessage('') }}
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
           />
 
           {error && <p style={styles.error}>{error}</p>}
           {message && <p style={styles.success}>{message}</p>}
-
-          {devLink && (
-            <div style={styles.devBox}>
-              <p style={styles.devLabel}>🔧 DEV MODE — Reset Link:</p>
-              <a href={devLink} style={styles.devLink} target="_blank" rel="noopener noreferrer">
-                {devLink}
-              </a>
-              <button
-                style={styles.copyBtn}
-                onClick={() => { navigator.clipboard.writeText(devLink); setMessage('Link copied!') }}
-              >
-                📋 Copy Link
-              </button>
-            </div>
-          )}
 
           <button
             style={{ ...styles.button, opacity: loading ? 0.7 : 1 }}
@@ -184,42 +163,5 @@ const styles = {
     textDecoration: 'none',
     letterSpacing: '0.03em',
     marginTop: 8,
-  },
-  devBox: {
-    width: '100%',
-    backgroundColor: '#2d3445',
-    borderRadius: 12,
-    padding: '12px 16px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    boxSizing: 'border-box',
-  },
-  devLabel: {
-    fontFamily: FONT,
-    fontSize: '0.75rem',
-    color: '#f0c040',
-    margin: 0,
-    fontWeight: 'bold',
-    letterSpacing: '0.05em',
-  },
-  devLink: {
-    fontFamily: FONT,
-    fontSize: '0.7rem',
-    color: '#8ab4f8',
-    wordBreak: 'break-all',
-    textDecoration: 'underline',
-    lineHeight: 1.4,
-  },
-  copyBtn: {
-    fontFamily: FONT,
-    fontSize: '0.75rem',
-    color: '#ddd',
-    backgroundColor: '#3d4a5f',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 12px',
-    cursor: 'pointer',
-    alignSelf: 'flex-start',
   },
 }

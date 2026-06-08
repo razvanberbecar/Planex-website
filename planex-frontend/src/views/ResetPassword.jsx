@@ -87,7 +87,6 @@ export default function ResetPassword() {
       <div style={styles.page}>
         <div style={styles.card}>
           <div style={styles.header}>
-            <span style={styles.headerIcon}>⚠️</span>
             <span style={styles.headerTitle}>Invalid Link</span>
           </div>
           <div style={styles.divider} />
@@ -111,7 +110,6 @@ export default function ResetPassword() {
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.header}>
-          <span style={styles.headerIcon}>🔐</span>
           <span style={styles.headerTitle}>Set New Password</span>
         </div>
         <div style={styles.divider} />

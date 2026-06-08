@@ -1,188 +1,87 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import {
-  fetchSuspiciousActivities,
-  fetchObservationList,
-  reviewSuspiciousActivity,
-  clearObservation,
-  restrictUser,
-  unrestrictUser,
-} from '../services/api'
+import { fetchAdminUsers, fetchRoles, updateUserRole } from '../services/api'
 
 const FONT = '"Courier New", Courier, monospace'
 
-const SEVERITY_COLORS = {
-  CRITICAL: { bg: '#f8d7da', color: '#7c1d24', border: '#f5c2c7' },
-  HIGH:     { bg: '#fce4d6', color: '#8a4b0a', border: '#f5cba0' },
-  MEDIUM:   { bg: '#fff3cd', color: '#664d03', border: '#ffecb5' },
-  LOW:      { bg: '#d1e7dd', color: '#0a3622', border: '#badbcc' },
+const ROLE_COLORS = {
+  admin:   { bg: '#f8d7da', color: '#7c1d24', border: '#f5c2c7' },
+  manager: { bg: '#fce4d6', color: '#8a4b0a', border: '#f5cba0' },
+  editor:  { bg: '#fff3cd', color: '#664d03', border: '#ffecb5' },
+  viewer:  { bg: '#d1e7dd', color: '#0a3622', border: '#badbcc' },
+  user:    { bg: '#e2e8f0', color: '#2d3748', border: '#cbd5e0' },
 }
 
-const STATUS_COLORS = {
-  UNDER_OBSERVATION: { bg: '#fff3cd', color: '#664d03', border: '#ffecb5' },
-  CLEARED:           { bg: '#d1e7dd', color: '#0a3622', border: '#badbcc' },
-  RESTRICTED:        { bg: '#f8d7da', color: '#7c1d24', border: '#f5c2c7' },
-}
-
-function Badge({ label, colorMap }) {
-  const c = colorMap[label] || colorMap['LOW'] || { bg: '#eee', color: '#333', border: '#ccc' }
+function RoleBadge({ name }) {
+  const c = ROLE_COLORS[name] || ROLE_COLORS['user']
   return (
     <span style={{
-      fontFamily: FONT, fontSize: '0.7rem', fontWeight: 'bold', padding: '3px 10px',
-      borderRadius: 20, backgroundColor: c.bg, color: c.color,
-      border: `1px solid ${c.border}`, whiteSpace: 'nowrap',
+      fontFamily: FONT, fontSize: '0.7rem', fontWeight: 'bold',
+      padding: '3px 10px', borderRadius: 20,
+      backgroundColor: c.bg, color: c.color, border: `1px solid ${c.border}`,
+      whiteSpace: 'nowrap',
     }}>
-      {label}
+      {name}
     </span>
   )
 }
 
-function SidebarItem({ icon, label, active, onClick }) {
-  return (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px',
-      color: '#e2e8f0', fontSize: '0.9rem', border: 'none', cursor: 'pointer',
-      textAlign: 'left', width: '100%',
-      backgroundColor: active ? 'rgba(255,255,255,0.12)' : 'transparent',
-      fontFamily: FONT, transition: 'background-color 0.2s',
-    }}>
-      <span style={{ fontSize: '1rem', width: 20, textAlign: 'center' }}>{icon}</span>
-      <span>{label}</span>
-    </button>
-  )
-}
-
-function SeverityBadge({ severity }) {
-  return <Badge label={severity} colorMap={SEVERITY_COLORS} />
-}
-
-function StatusBadge({ status }) {
-  return <Badge label={status} colorMap={STATUS_COLORS} />
-}
-
 export default function AdminView() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user: currentUser } = useAuth()
 
-  const [tab, setTab] = useState('suspicious') // 'suspicious' | 'observation'
+  const [users, setUsers] = useState([])
+  const [roles, setRoles] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+  const [changing, setChanging] = useState(null)
 
-  // Suspicious activities
-  const [activities, setActivities] = useState([])
-  const [actLoading, setActLoading] = useState(false)
-  const [actError, setActError] = useState('')
-  const [showUnreviewedOnly, setShowUnreviewedOnly] = useState(false)
-
-  // Observation list
-  const [observations, setObservations] = useState([])
-  const [obsLoading, setObsLoading] = useState(false)
-  const [obsError, setObsError] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-
-  // Action feedback
-  const [actionMsg, setActionMsg] = useState('')
-  const [noteText, setNoteText] = useState('')
-
-  const loadActivities = useCallback(async () => {
-    if (!user) return
-    setActLoading(true)
-    setActError('')
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
     try {
-      const data = await fetchSuspiciousActivities({
-        unreviewedOnly: showUnreviewedOnly || undefined,
-      })
-      setActivities(data)
+      const [usersData, rolesData] = await Promise.all([fetchAdminUsers(), fetchRoles()])
+      setUsers(usersData)
+      setRoles(Array.isArray(rolesData) ? rolesData : [])
     } catch (err) {
-      setActError(err.message)
+      setError(err.message)
     } finally {
-      setActLoading(false)
+      setLoading(false)
     }
-  }, [user, showUnreviewedOnly])
+  }, [])
 
-  const loadObservations = useCallback(async () => {
-    if (!user) return
-    setObsLoading(true)
-    setObsError('')
-    try {
-      const data = await fetchObservationList({
-        status: statusFilter || undefined,
-      })
-      setObservations(data)
-    } catch (err) {
-      setObsError(err.message)
-    } finally {
-      setObsLoading(false)
-    }
-  }, [user, statusFilter])
+  useEffect(() => { load() }, [load])
 
-  useEffect(() => { loadActivities() }, [loadActivities])
-  useEffect(() => { loadObservations() }, [loadObservations])
-
-  const handleReview = async (id) => {
-    try {
-      await reviewSuspiciousActivity(id)
-      setActionMsg('Activity marked as reviewed.')
-      loadActivities()
-    } catch (err) {
-      setActError(err.message)
-    }
-  }
-
-  const handleClear = async (id) => {
-    try {
-      await clearObservation(id, noteText)
-      setActionMsg('User cleared from observation.')
-      setNoteText('')
-      loadObservations()
-    } catch (err) {
-      setObsError(err.message)
-    }
-  }
-
-  const handleRestrict = async (id) => {
-    try {
-      await restrictUser(id, noteText)
-      setActionMsg('User restricted.')
-      setNoteText('')
-      loadObservations()
-    } catch (err) {
-      setObsError(err.message)
-    }
-  }
-
-  const handleUnrestrict = async (id) => {
-    try {
-      await unrestrictUser(id, noteText)
-      setActionMsg('User unrestricted — back under observation.')
-      setNoteText('')
-      loadObservations()
-    } catch (err) {
-      setObsError(err.message)
-    }
-  }
-
-  // Clear action message after 3s
   useEffect(() => {
-    if (!actionMsg) return
-    const t = setTimeout(() => setActionMsg(''), 3000)
+    if (!toast) return
+    const t = setTimeout(() => setToast(''), 3000)
     return () => clearTimeout(t)
-  }, [actionMsg])
+  }, [toast])
+
+  const handleRoleChange = async (userId, roleId) => {
+    setChanging(userId)
+    try {
+      await updateUserRole(userId, Number(roleId))
+      setToast('Role updated.')
+      load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setChanging(null)
+    }
+  }
 
   const thStyle = {
     fontFamily: FONT, fontSize: '0.7rem', fontWeight: 'bold', color: '#333',
-    textAlign: 'left', padding: '6px 10px', textTransform: 'uppercase',
-    letterSpacing: 1, borderBottom: '1px solid rgba(0,0,0,0.2)',
+    textAlign: 'left', padding: '8px 12px', textTransform: 'uppercase',
+    letterSpacing: 1, borderBottom: '2px solid rgba(0,0,0,0.2)',
   }
   const tdStyle = {
-    fontFamily: FONT, fontSize: '0.8rem', color: '#111',
-    padding: '8px 10px', borderBottom: '1px solid rgba(0,0,0,0.12)',
+    fontFamily: FONT, fontSize: '0.82rem', color: '#111',
+    padding: '10px 12px', borderBottom: '1px solid rgba(0,0,0,0.1)',
     verticalAlign: 'middle',
-  }
-  const btnStyle = {
-    fontFamily: FONT, fontSize: '0.7rem', fontWeight: 'bold',
-    padding: '4px 12px', borderRadius: 20, border: '1px solid #333',
-    backgroundColor: 'transparent', cursor: 'pointer', color: '#111',
-    transition: 'all 0.15s',
   }
 
   return (
@@ -191,8 +90,7 @@ export default function AdminView() {
       {/* SIDEBAR */}
       <aside style={{
         width: 210, minWidth: 210, backgroundColor: '#2d3748', color: '#e2e8f0',
-        display: 'flex', flexDirection: 'column', padding: '20px 0',
-        boxSizing: 'border-box',
+        display: 'flex', flexDirection: 'column', padding: '20px 0', boxSizing: 'border-box',
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 20px',
@@ -203,27 +101,30 @@ export default function AdminView() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0,
           }}>
-            {user?.Name ? user.Name.charAt(0).toUpperCase() : '?'}
+            {currentUser?.Name ? currentUser.Name.charAt(0).toUpperCase() : '?'}
           </div>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{
               fontSize: '0.85rem', fontWeight: 'bold',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
-              {user?.Name || 'Unknown'}
+              {currentUser?.Name || 'Unknown'}
             </div>
-            <div style={{
-              fontSize: '0.65rem', color: '#8a9e6e',
-              textTransform: 'uppercase', letterSpacing: 1,
-            }}>
-              admin ⭐
+            <div style={{ fontSize: '0.65rem', color: '#8a9e6e', textTransform: 'uppercase', letterSpacing: 1 }}>
+              admin
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 10, flex: 1 }}>
-          <SidebarItem icon="🔍" label="Suspicious" active={tab === 'suspicious'} onClick={() => setTab('suspicious')} />
-          <SidebarItem icon="👁" label="Observation" active={tab === 'observation'} onClick={() => setTab('observation')} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginTop: 10 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px',
+            color: '#e2e8f0', fontSize: '0.9rem',
+            backgroundColor: 'rgba(255,255,255,0.12)',
+          }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Users</span>
+          </div>
         </div>
 
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '12px 20px' }}>
@@ -232,7 +133,8 @@ export default function AdminView() {
             color: '#e2e8f0', fontSize: '0.85rem', border: 'none',
             backgroundColor: 'transparent', cursor: 'pointer', fontFamily: FONT, width: '100%',
           }}>
-            ← Back to Tasks
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Tasks
           </button>
         </div>
       </aside>
@@ -250,239 +152,97 @@ export default function AdminView() {
           Planex
         </div>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, position: 'relative', zIndex: 1 }}>
-          <h1 style={{ fontFamily: FONT, fontSize: '2rem', fontWeight: 900, color: '#111', textDecoration: 'underline', margin: 0 }}>
-            Admin — {tab === 'suspicious' ? 'Suspicious Activities' : 'Observation List'}
-          </h1>
-        </div>
-
-        {/* Action feedback toast */}
-        {actionMsg && (
-          <div style={{
-            fontFamily: FONT, fontSize: '0.85rem', color: '#0a3622',
-            backgroundColor: '#d1e7dd', padding: '8px 16px', borderRadius: 8,
-            marginBottom: 16, position: 'relative', zIndex: 1,
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h1 style={{
+            fontFamily: FONT, fontSize: '2rem', fontWeight: 900,
+            color: '#111', textDecoration: 'underline', margin: '0 0 24px',
           }}>
-            ✓ {actionMsg}
-          </div>
-        )}
+            Admin — Users
+          </h1>
 
-        {/* ── SUSPICIOUS ACTIVITIES TAB ── */}
-        {tab === 'suspicious' && (
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            {/* Filters */}
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-              <label style={{ fontFamily: FONT, fontSize: '0.8rem', color: '#333', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={showUnreviewedOnly}
-                  onChange={e => setShowUnreviewedOnly(e.target.checked)}
-                  style={{ cursor: 'pointer' }}
-                />
-                Unreviewed only
-              </label>
+          {toast && (
+            <div style={{
+              fontFamily: FONT, fontSize: '0.85rem', color: '#0a3622',
+              backgroundColor: '#d1e7dd', padding: '8px 16px', borderRadius: 8, marginBottom: 16,
+            }}>
+              {toast}
             </div>
+          )}
 
-            {actError && (
-              <div style={{ fontFamily: FONT, color: '#7c1d24', backgroundColor: '#f8d7da', padding: '8px 16px', borderRadius: 8, marginBottom: 16 }}>
-                ⚠ {actError}
-              </div>
-            )}
+          {error && (
+            <div style={{
+              fontFamily: FONT, fontSize: '0.85rem', color: '#7c1d24',
+              backgroundColor: '#f8d7da', padding: '8px 16px', borderRadius: 8, marginBottom: 16,
+            }}>
+              {error}
+            </div>
+          )}
 
-            {actLoading ? (
-              <p style={{ fontFamily: FONT, color: '#444' }}>Loading...</p>
-            ) : activities.length === 0 ? (
-              <p style={{ fontFamily: FONT, color: '#444' }}>No suspicious activities found.</p>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>User</th>
-                      <th style={thStyle}>Rule</th>
-                      <th style={thStyle}>Severity</th>
-                      <th style={thStyle}>Detected</th>
-                      <th style={thStyle}>Reviewed</th>
-                      <th style={thStyle}>Actions</th>
+          {loading ? (
+            <p style={{ fontFamily: FONT, color: '#444' }}>Loading...</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Name</th>
+                    <th style={thStyle}>Email</th>
+                    <th style={thStyle}>Current Role</th>
+                    <th style={thStyle}>Change Role</th>
+                    <th style={thStyle}>Joined</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr
+                      key={u.UserId}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      style={{ transition: 'background-color 0.15s' }}
+                    >
+                      <td style={tdStyle}>
+                        <strong>{u.Name}</strong>
+                        {u.UserId === currentUser?.UserId && (
+                          <span style={{ fontSize: '0.65rem', color: '#666', marginLeft: 6 }}>(you)</span>
+                        )}
+                      </td>
+                      <td style={tdStyle}>{u.Email}</td>
+                      <td style={tdStyle}>
+                        <RoleBadge name={u.role?.Name || 'user'} />
+                      </td>
+                      <td style={tdStyle}>
+                        <select
+                          disabled={changing === u.UserId || u.UserId === currentUser?.UserId}
+                          value={u.role?.RoleId || ''}
+                          onChange={e => handleRoleChange(u.UserId, e.target.value)}
+                          style={{
+                            fontFamily: FONT, fontSize: '0.78rem', padding: '5px 10px',
+                            borderRadius: 8, border: '1px solid #555',
+                            backgroundColor: '#f5f5d0', color: '#111',
+                            cursor: u.UserId === currentUser?.UserId ? 'not-allowed' : 'pointer',
+                            opacity: changing === u.UserId ? 0.6 : 1,
+                          }}
+                        >
+                          {roles.map(r => (
+                            <option key={r.RoleId} value={r.RoleId}>{r.Name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={{ fontSize: '0.75rem', color: '#444' }}>
+                          {new Date(u.CreatedAt).toLocaleDateString()}
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {activities.map(a => (
-                      <tr key={a.SuspiciousActivityId} style={{ transition: 'background-color 0.15s' }}
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <td style={tdStyle}>
-                          <strong>{a.user?.Name || 'Unknown'}</strong>
-                          <span style={{ fontSize: '0.7rem', color: '#666', display: 'block' }}>
-                            {a.user?.Email || ''}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>
-                          <span style={{ fontSize: '0.75rem', fontFamily: FONT }}>
-                            {a.RuleTriggered}
-                          </span>
-                        </td>
-                        <td style={tdStyle}><SeverityBadge severity={a.Severity} /></td>
-                        <td style={tdStyle}>
-                          <span style={{ fontSize: '0.75rem' }}>
-                            {new Date(a.DetectedAt).toLocaleString()}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>
-                          {a.IsReviewed ? (
-                            <span style={{ color: '#0a3622', fontSize: '0.75rem' }}>
-                              ✓ by {a.reviewer?.Name || 'admin'}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#8a4b0a', fontSize: '0.75rem' }}>Pending</span>
-                          )}
-                        </td>
-                        <td style={tdStyle}>
-                          {!a.IsReviewed && (
-                            <button style={btnStyle} onClick={() => handleReview(a.SuspiciousActivityId)}>
-                              Mark Reviewed
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── OBSERVATION LIST TAB ── */}
-        {tab === 'observation' && (
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            {/* Filters */}
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: FONT, fontSize: '0.8rem', color: '#333' }}>Status:</span>
-              {['', 'UNDER_OBSERVATION', 'CLEARED', 'RESTRICTED'].map(s => (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  style={{
-                    fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold',
-                    padding: '4px 14px', borderRadius: 20, cursor: 'pointer',
-                    border: '1px solid #333',
-                    backgroundColor: statusFilter === s ? '#3a4558' : 'transparent',
-                    color: statusFilter === s ? '#ddd' : '#333',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {s || 'All'}
-                </button>
-              ))}
+                  ))}
+                </tbody>
+              </table>
+              {users.length === 0 && (
+                <p style={{ fontFamily: FONT, color: '#444', marginTop: 16 }}>No users found.</p>
+              )}
             </div>
-
-            {obsError && (
-              <div style={{ fontFamily: FONT, color: '#7c1d24', backgroundColor: '#f8d7da', padding: '8px 16px', borderRadius: 8, marginBottom: 16 }}>
-                ⚠ {obsError}
-              </div>
-            )}
-
-            {obsLoading ? (
-              <p style={{ fontFamily: FONT, color: '#444' }}>Loading...</p>
-            ) : observations.length === 0 ? (
-              <p style={{ fontFamily: FONT, color: '#444' }}>No observation entries found.</p>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 750 }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>User</th>
-                      <th style={thStyle}>Status</th>
-                      <th style={thStyle}>Reason</th>
-                      <th style={thStyle}>Started</th>
-                      <th style={thStyle}>Notes</th>
-                      <th style={thStyle}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {observations.map(o => (
-                      <tr key={o.ObservationId} style={{ transition: 'background-color 0.15s' }}
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <td style={tdStyle}>
-                          <strong>{o.observedUser?.Name || 'Unknown'}</strong>
-                          <span style={{ fontSize: '0.7rem', color: '#666', display: 'block' }}>
-                            {o.observedUser?.Email || ''}
-                          </span>
-                        </td>
-                        <td style={tdStyle}><StatusBadge status={o.Status} /></td>
-                        <td style={tdStyle}>
-                          <span style={{ fontSize: '0.75rem' }}>{o.Reason || '—'}</span>
-                        </td>
-                        <td style={tdStyle}>
-                          <span style={{ fontSize: '0.75rem' }}>
-                            {new Date(o.StartedAt).toLocaleString()}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>
-                          <span style={{ fontSize: '0.75rem', color: '#555' }}>
-                            {o.Notes || '—'}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>
-                          <div style={{ display: 'flex', gap: 6, flexDirection: 'column', alignItems: 'flex-start' }}>
-                            {o.Status === 'UNDER_OBSERVATION' && (
-                              <>
-                                <button style={btnStyle} onClick={() => handleClear(o.ObservationId)}>
-                                  Clear
-                                </button>
-                                <button
-                                  style={{ ...btnStyle, color: '#7c1d24', borderColor: '#7c1d24' }}
-                                  onClick={() => handleRestrict(o.ObservationId)}
-                                >
-                                  Restrict
-                                </button>
-                              </>
-                            )}
-                            {o.Status === 'RESTRICTED' && (
-                              <button
-                                style={{ ...btnStyle, color: '#0a3622', borderColor: '#0a3622' }}
-                                onClick={() => handleUnrestrict(o.ObservationId)}
-                              >
-                                Unrestrict
-                              </button>
-                            )}
-                            {o.Status === 'CLEARED' && (
-                              <span style={{ fontSize: '0.7rem', color: '#666' }}>
-                                Finalized
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Note input for actions */}
-            <div style={{ marginTop: 20, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: FONT, fontSize: '0.8rem', color: '#333' }}>Note:</span>
-              <input
-                type="text"
-                value={noteText}
-                onChange={e => setNoteText(e.target.value)}
-                placeholder="Optional note for clear/restrict..."
-                style={{
-                  fontFamily: FONT, fontSize: '0.8rem', padding: '8px 14px',
-                  borderRadius: 20, border: '1px solid #333', backgroundColor: '#f5f5d0',
-                  outline: 'none', color: '#222', flex: 1, maxWidth: 400,
-                }}
-              />
-            </div>
-          </div>
-        )}
-
+          )}
+        </div>
       </main>
     </div>
   )

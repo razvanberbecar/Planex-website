@@ -105,32 +105,30 @@ async function request(path, options = {}) {
   if (res.status === 401 && getRefreshToken()) {
     const data = await res.json().catch(() => ({}))
 
-    if (data.code === 'TOKEN_EXPIRED' || data.code === 'INACTIVITY_TIMEOUT') {
-      if (data.code === 'INACTIVITY_TIMEOUT') {
-        clearTokens()
-        window.dispatchEvent(new CustomEvent('auth:inactivity-logout'))
-        throw new Error('Session expired due to inactivity. Please login again.')
-      }
+    if (data.code === 'INACTIVITY_TIMEOUT') {
+      clearTokens()
+      window.dispatchEvent(new CustomEvent('auth:inactivity-logout'))
+      throw new Error('Session expired due to inactivity. Please login again.')
+    }
 
-      try {
-        const newToken = await attemptTokenRefresh()
-        if (newToken) {
-          headers['Authorization'] = `Bearer ${newToken}`
-          res = await fetch(`${BASE_URL}${path}`, {
-            headers,
-            ...options,
-          })
-        }
-      } catch (refreshErr) {
-        window.dispatchEvent(new CustomEvent('auth:logout'))
-        throw new Error('Session expired. Please login again.')
-      }
-    } else if (data.code === 'ACCOUNT_LOCKED') {
+    if (data.code === 'ACCOUNT_LOCKED') {
       throw new Error(data.error || 'Account is locked. Please try again later.')
-    } else {
+    }
+
+    // TOKEN_EXPIRED or any other 401 — attempt a silent refresh
+    try {
+      const newToken = await attemptTokenRefresh()
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`
+        res = await fetch(`${BASE_URL}${path}`, {
+          headers,
+          ...options,
+        })
+      }
+    } catch (refreshErr) {
       clearTokens()
       window.dispatchEvent(new CustomEvent('auth:logout'))
-      throw new Error(data.error || 'Authentication failed. Please login again.')
+      throw new Error('Session expired. Please login again.')
     }
   }
 
@@ -361,6 +359,39 @@ export async function deleteTask(id) {
   return request(`/tasks/${id}`, { method: 'DELETE' })
 }
 
+export async function updateTaskStatus(id, status) {
+  return request(`/tasks/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function suggestAiSubtasks(taskId) {
+  return request(`/tasks/${taskId}/ai-subtasks`, { method: 'POST' })
+}
+
+export async function fetchSubtasks(taskId) {
+  return request(`/tasks/${taskId}/subtasks`)
+}
+
+export async function createSubtask(taskId, title) {
+  return request(`/tasks/${taskId}/subtasks`, {
+    method: 'POST',
+    body: JSON.stringify({ title }),
+  })
+}
+
+export async function updateSubtask(taskId, subtaskId, data) {
+  return request(`/tasks/${taskId}/subtasks/${subtaskId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteSubtask(taskId, subtaskId) {
+  return request(`/tasks/${taskId}/subtasks/${subtaskId}`, { method: 'DELETE' })
+}
+
 // ══════════════════════════════════════════════════════════════
 // 8. STATISTICS
 // ══════════════════════════════════════════════════════════════
@@ -391,47 +422,13 @@ export async function fetchAdminUsers() {
   return request('/admin/users')
 }
 
+export async function fetchRoles() {
+  return request('/admin/roles')
+}
+
 export async function updateUserRole(userId, roleId) {
   return request(`/admin/users/${userId}/role`, {
     method: 'PATCH',
     body: JSON.stringify({ roleId }),
-  })
-}
-
-export async function fetchSuspiciousActivities(params = {}) {
-  const query = new URLSearchParams()
-  if (params.unreviewedOnly) query.set('unreviewedOnly', 'true')
-  if (params.severity)       query.set('severity', params.severity)
-  return request(`/admin/suspicious-activities?${query.toString()}`)
-}
-
-export async function fetchObservationList(params = {}) {
-  const query = new URLSearchParams()
-  if (params.status) query.set('status', params.status)
-  return request(`/admin/observation-list?${query.toString()}`)
-}
-
-export async function reviewSuspiciousActivity(id) {
-  return request(`/admin/suspicious-activities/${id}/review`, { method: 'PATCH' })
-}
-
-export async function clearObservation(id, notes = '') {
-  return request(`/admin/observation-list/${id}/clear`, {
-    method: 'PATCH',
-    body: JSON.stringify({ notes }),
-  })
-}
-
-export async function restrictUser(id, notes = '') {
-  return request(`/admin/observation-list/${id}/restrict`, {
-    method: 'PATCH',
-    body: JSON.stringify({ notes }),
-  })
-}
-
-export async function unrestrictUser(id, notes = '') {
-  return request(`/admin/observation-list/${id}/unrestrict`, {
-    method: 'PATCH',
-    body: JSON.stringify({ notes }),
   })
 }

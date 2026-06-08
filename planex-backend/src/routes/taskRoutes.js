@@ -18,6 +18,9 @@ const {
   handleValidation,
 } = require('../middleware/validateCjs');
 
+const { broadcastTaskEvent } = require('../websocket/wsServer');
+const { suggestSubtasks }   = require('../services/aiService');
+
 const router = express.Router();
 
 // All routes in this router require authentication + activity tracking
@@ -225,6 +228,7 @@ router.post('/', taskBodyRules, handleValidation, requirePermission('tasks:creat
       }).catch(err => console.error('[Tasks] Log error:', err.message))
     }
 
+    broadcastTaskEvent('TASK_CREATED', task)
     res.status(201).json(task);
   } catch (err) {
     next(err);
@@ -253,6 +257,7 @@ router.put('/:id', idParamRule, taskUpdateRules, handleValidation, requirePermis
       }).catch(err => console.error('[Tasks] Log error:', err.message))
     }
 
+    broadcastTaskEvent('TASK_UPDATED', task)
     res.json(task)
   } catch (err) {
     next(err)
@@ -290,6 +295,7 @@ router.delete('/:id', idParamRule, handleValidation, async (req, res, next) => {
       userAgent: req.headers['user-agent'],
     }).catch(err => console.error('[Tasks] Log error:', err.message))
 
+    broadcastTaskEvent('TASK_DELETED', { id })
     res.status(204).send()
   } catch (err) {
     next(err)
@@ -318,7 +324,40 @@ router.patch('/:id/toggle', idParamRule, handleValidation, requirePermission('ta
       }).catch(err => console.error('[Tasks] Log error:', err.message))
     }
 
+    broadcastTaskEvent('TASK_UPDATED', task)
     res.json(task)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── UPDATE STATUS (Kanban drag-and-drop) ──────────────────
+router.patch('/:id/status', idParamRule, handleValidation, requirePermission('tasks:update'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const { status } = req.body
+    if (!['todo', 'in_progress', 'done'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be todo, in_progress, or done.' })
+    }
+    const task = await taskRepo.updateStatus(id, status)
+    if (!task) return res.status(404).json({ error: 'Task not found.' })
+    task.subtasks = await subRepo.getAllForTask(id)
+    broadcastTaskEvent('TASK_UPDATED', task)
+    res.json(task)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── AI SUBTASK SUGGESTIONS ────────────────────────────────
+router.post('/:id/ai-subtasks', idParamRule, handleValidation, requirePermission('tasks:read'), async (req, res, next) => {
+  try {
+    const id   = Number(req.params.id)
+    const task = await taskRepo.getById(id)
+    if (!task) return res.status(404).json({ error: 'Task not found.' })
+
+    const suggestions = await suggestSubtasks(task.title, task.description)
+    res.json({ suggestions })
   } catch (err) {
     next(err)
   }

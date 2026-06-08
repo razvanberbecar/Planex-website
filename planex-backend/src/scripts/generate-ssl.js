@@ -28,7 +28,7 @@ function generateSelfSignedCert() {
     return;
   }
 
-  console.log('  🔐 Generating self-signed SSL certificate...\n');
+  console.log('  Generating self-signed SSL certificate...\n');
 
   // Try OpenSSL first
   if (tryOpenSSL(keyPath, certPath)) {
@@ -36,7 +36,7 @@ function generateSelfSignedCert() {
   }
 
   // Fallback: write a placeholder cert so the server can start
-  console.log('  ⚠️  OpenSSL not available. Writing placeholder certificate.\n');
+  console.log('  [!] OpenSSL not available. Writing placeholder certificate.\n');
 
   // Generate a key using Node's crypto
   const { generateKeyPairSync } = require('crypto');
@@ -74,13 +74,13 @@ function generateSelfSignedCert() {
   fs.writeFileSync(keyPath, privateKey, 'utf8');
   fs.writeFileSync(certPath, certPem, 'utf8');
 
-  console.log(`  ✅ Placeholder SSL certificate generated.`);
+  console.log(`  [OK] Placeholder SSL certificate generated.`);
   console.log(`     Key:  ${keyPath}`);
   console.log(`     Cert: ${certPath}`);
   console.log('');
-  console.log('  ⚠️  This is a self-signed certificate for development only.');
-  console.log('  ⚠️  Browsers will show a security warning — click "Advanced" → "Proceed".\n');
-  console.log('  💡 Install OpenSSL for proper certificate generation:');
+  console.log('  [!] This is a self-signed certificate for development only.');
+  console.log('  [!] Browsers will show a security warning — click "Advanced" -> "Proceed".\n');
+  console.log('  Install OpenSSL for proper certificate generation:');
   console.log('     https://slproweb.com/products/Win32OpenSSL.html\n');
 }
 
@@ -109,13 +109,13 @@ function tryOpenSSL(keyPath, certPath) {
       { stdio: 'inherit' }
     );
 
-    console.log('\n  ✅ Certificate generated with OpenSSL!');
+    console.log('\n  [OK] Certificate generated with OpenSSL!');
     console.log(`     Key:  ${keyPath}`);
     console.log(`     Cert: ${certPath}`);
     console.log(`     SAN:  ${san}`);
     console.log('');
-    console.log('  ⚠️  This is a self-signed certificate for development only.');
-    console.log('  ⚠️  Browsers will show a security warning — click "Advanced" → "Proceed".\n');
+    console.log('  [!] This is a self-signed certificate for development only.');
+    console.log('  [!] Browsers will show a security warning — click "Advanced" -> "Proceed".\n');
     return true;
   } catch {
     return false;

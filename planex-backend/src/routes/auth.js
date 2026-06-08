@@ -387,12 +387,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       userAgent: req.headers['user-agent'],
     }).catch(() => {});
 
-    // In dev mode, also return the reset URL so the frontend can display it
-    const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
-    res.json({
-      message: 'If that email exists, a password reset link has been sent.',
-      ...(isDev && { devResetUrl: resetUrl, devMode: true }),
-    });
+    res.json({ message: 'If that email exists, a password reset link has been sent.' });
   } catch (err) {
     console.error('[Auth] Forgot password error:', err.message);
     res.status(500).json({ error: 'Password reset request failed.' });

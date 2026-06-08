@@ -53,66 +53,11 @@ const schema = buildSchema(`
     monthlyBreakdown: [MonthStat!]!
   }
 
-  # ── Logging & Detection Types ─────────────────────────────
-
-  type ActivityLogType {
-    LogId: Int!
-    UserId: Int!
-    Action: String!
-    ResourceType: String
-    ResourceId: Int
-    Details: String
-    IpAddress: String
-    UserAgent: String
-    Timestamp: String!
-    user: UserBrief
-  }
-
-  type UserBrief {
-    UserId: Int!
-    Name: String!
-    Email: String!
-  }
-
-  type SuspiciousActivityType {
-    SuspiciousActivityId: Int!
-    UserId: Int!
-    ActivityLogId: Int
-    RuleTriggered: String!
-    Severity: String!
-    Details: String
-    IsReviewed: Boolean!
-    DetectedAt: String!
-    ReviewedBy: Int
-    ReviewedAt: String
-    user: UserBrief
-    reviewer: UserBrief
-  }
-
-  type ObservationEntryType {
-    ObservationId: Int!
-    UserId: Int!
-    AddedBy: Int!
-    Reason: String!
-    Status: String!
-    SuspiciousActivityId: Int
-    StartedAt: String!
-    EndedAt: String
-    Notes: String
-    observedUser: UserBrief
-    addedByAdmin: UserBrief
-    suspiciousActivity: SuspiciousActivityType
-  }
-
   type Query {
     tasks(page: Int, limit: Int, filter: String, priority: String, search: String): TaskPage!
     task(id: Int!): Task
     statistics: Statistics!
     subtasks(taskId: Int!): [Subtask!]!
-
-    # ── Admin queries ────────────────────────────────────────
-    suspiciousActivities(unreviewedOnly: Boolean, severity: String): [SuspiciousActivityType!]!
-    observationList(status: String): [ObservationEntryType!]!
   }
 
   input CreateTaskInput {
@@ -142,10 +87,6 @@ const schema = buildSchema(`
     updateSubtask(id: Int!, title: String, isCompleted: Boolean): Subtask
     deleteSubtask(id: Int!): Boolean!
 
-    # ── Admin mutations ──────────────────────────────────────
-    reviewSuspiciousActivity(id: Int!, adminUserId: Int!): SuspiciousActivityType!
-    clearObservation(id: Int!, adminUserId: Int!, notes: String): ObservationEntryType!
-    restrictUser(id: Int!, adminUserId: Int!, notes: String): ObservationEntryType!
   }
 `)
 

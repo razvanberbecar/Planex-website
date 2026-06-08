@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const fs     = require('fs');
 const path   = require('path');
 const http   = require('http');
@@ -50,10 +51,10 @@ async function start() {
   // ── Start HTTP server (for WebSocket and optional fallback) ──
   httpServer.listen(HTTP_PORT, '0.0.0.0', () => {
     console.log(`\n  ┌──────────────────────────────────────────────────────┐`);
-    console.log(`  │  🔓 HTTP  (API)     → http://localhost:${HTTP_PORT}/api        │`);
-    console.log(`  │  🔓 HTTP  (GraphQL) → http://localhost:${HTTP_PORT}/graphql    │`);
-    console.log(`  │  🔓 HTTP  (WS)      → ws://localhost:${HTTP_PORT}              │`);
-    console.log(`  │  🔓 HTTP  LAN       → http://${localIP}:${HTTP_PORT}/api       │`);
+    console.log(`  │  [HTTP]  (API)     → http://localhost:${HTTP_PORT}/api        │`);
+    console.log(`  │  [HTTP]  (GraphQL) → http://localhost:${HTTP_PORT}/graphql    │`);
+    console.log(`  │  [HTTP]  (WS)      → ws://localhost:${HTTP_PORT}              │`);
+    console.log(`  │  [HTTP]  LAN       → http://${localIP}:${HTTP_PORT}/api       │`);
     console.log(`  └──────────────────────────────────────────────────────┘`);
   });
 
@@ -69,15 +70,15 @@ async function start() {
 
       httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
         console.log(`  ┌──────────────────────────────────────────────────────┐`);
-        console.log(`  │  🔒 HTTPS (API)     → https://localhost:${HTTPS_PORT}/api     │`);
-        console.log(`  │  🔒 HTTPS (GraphQL) → https://localhost:${HTTPS_PORT}/graphql │`);
-        console.log(`  │  🔒 HTTPS LAN       → https://${localIP}:${HTTPS_PORT}/api    │`);
+        console.log(`  │  [HTTPS] (API)     → https://localhost:${HTTPS_PORT}/api     │`);
+        console.log(`  │  [HTTPS] (GraphQL) → https://localhost:${HTTPS_PORT}/graphql │`);
+        console.log(`  │  [HTTPS] LAN       → https://${localIP}:${HTTPS_PORT}/api    │`);
         console.log(`  └──────────────────────────────────────────────────────┘`);
-        console.log(`\n  🌐  Server is running on both HTTP (WS) and HTTPS (API)`);
-        console.log(`  📡  Local network IP: ${localIP}\n`);
+        console.log(`\n  Server is running on both HTTP (WS) and HTTPS (API)`);
+        console.log(`  Local network IP: ${localIP}\n`);
       });
     } else {
-      console.log(`\n  ⚠️  SSL certificates not found at:`);
+      console.log(`\n  [!] SSL certificates not found at:`);
       console.log(`      Key:  ${SSL_KEY_PATH}`);
       console.log(`      Cert: ${SSL_CERT_PATH}`);
       console.log(`      HTTPS server will NOT start.`);

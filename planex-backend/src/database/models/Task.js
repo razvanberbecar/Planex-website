@@ -60,6 +60,14 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: null,
       comment: 'FK to Users.UserId — task owner',
     },
+    Status: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'todo',
+      validate: {
+        isIn: { args: [['todo', 'in_progress', 'done']], msg: 'Status must be todo, in_progress, or done.' },
+      },
+    },
   }, {
     sequelize,
     modelName: 'Task',

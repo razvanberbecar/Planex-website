@@ -8,11 +8,7 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class ActivityLog extends Model {
     static associate(models) {
-      // ActivityLog belongs to User
       ActivityLog.belongsTo(models.User, { foreignKey: 'UserId', as: 'user' });
-
-      // ActivityLog has many SuspiciousActivities (optional)
-      ActivityLog.hasMany(models.SuspiciousActivity, { foreignKey: 'ActivityLogId', as: 'suspiciousActivities' });
     }
   }
 

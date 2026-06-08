@@ -1,8 +1,5 @@
-const taskRepo          = require('../database/repositories/taskRepository')
-const subRepo           = require('../database/repositories/subtaskRepository')
-const detectionEngine   = require('../services/detectionEngine')
-const logService        = require('../services/logService')
-const { Task, TaskCollaborator, User, Role } = require('../database/models')
+const taskRepo = require('../database/repositories/taskRepository')
+const subRepo  = require('../database/repositories/subtaskRepository')
 
 // ── VALIDATION HELPERS ────────────────────────────────────
 const VALID_PRIORITIES = ['High', 'Medium', 'Low']
@@ -168,63 +165,6 @@ const root = {
     return subRepo.remove(id)
   },
 
-  // ── ADMIN QUERIES ──────────────────────────────────────────
-
-  suspiciousActivities: async ({ unreviewedOnly, severity }, { adminUserId }) => {
-    if (!adminUserId) throw new Error('adminUserId is required.')
-    // Verify admin
-    const adminUser = await User.findByPk(adminUserId, {
-      include: [{ model: Role, as: 'role' }],
-    })
-    if (!adminUser || adminUser.role.Name !== 'admin')
-      throw new Error('Admin access required.')
-
-    return detectionEngine.getSuspiciousActivities({ unreviewedOnly, severity })
-  },
-
-  observationList: async ({ status }, { adminUserId }) => {
-    if (!adminUserId) throw new Error('adminUserId is required.')
-    // Verify admin
-    const adminUser = await User.findByPk(adminUserId, {
-      include: [{ model: Role, as: 'role' }],
-    })
-    if (!adminUser || adminUser.role.Name !== 'admin')
-      throw new Error('Admin access required.')
-
-    return detectionEngine.getObservationList({ status })
-  },
-
-  // ── ADMIN MUTATIONS ────────────────────────────────────────
-
-  reviewSuspiciousActivity: async ({ id, adminUserId }) => {
-    const adminUser = await User.findByPk(adminUserId, {
-      include: [{ model: Role, as: 'role' }],
-    })
-    if (!adminUser || adminUser.role.Name !== 'admin')
-      throw new Error('Admin access required.')
-
-    return detectionEngine.reviewSuspiciousActivity(id, adminUserId)
-  },
-
-  clearObservation: async ({ id, adminUserId, notes }) => {
-    const adminUser = await User.findByPk(adminUserId, {
-      include: [{ model: Role, as: 'role' }],
-    })
-    if (!adminUser || adminUser.role.Name !== 'admin')
-      throw new Error('Admin access required.')
-
-    return detectionEngine.clearObservation(id, notes)
-  },
-
-  restrictUser: async ({ id, adminUserId, notes }) => {
-    const adminUser = await User.findByPk(adminUserId, {
-      include: [{ model: Role, as: 'role' }],
-    })
-    if (!adminUser || adminUser.role.Name !== 'admin')
-      throw new Error('Admin access required.')
-
-    return detectionEngine.restrictUser(id, notes)
-  },
 }
 
 module.exports = root

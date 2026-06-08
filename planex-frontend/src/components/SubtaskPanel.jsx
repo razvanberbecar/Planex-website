@@ -1,42 +1,58 @@
 import React, { useState, useEffect } from 'react'
+import { fetchSubtasks, createSubtask, updateSubtask, deleteSubtask, suggestAiSubtasks } from '../services/api'
 
-// Use the current hostname so it works from any device on the network
-const BASE_URL = `http://${window.location.hostname}:3001/api`
 const FONT = '"Courier New", Courier, monospace'
 
-async function apiFetch(path, options = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  })
-  if (res.status === 204) return null
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Request failed')
-  return data
-}
-
 export default function SubtaskPanel({ taskId }) {
-  const [subtasks, setSubtasks]   = useState([])
-  const [newTitle, setNewTitle]   = useState('')
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState('')
+  const [subtasks, setSubtasks] = useState([])
+  const [newTitle, setNewTitle] = useState('')
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState('')
+
+  // AI state
+  const [suggestions,  setSuggestions]  = useState(null)  // null = hidden, [] = empty, [...] = visible
+  const [aiLoading,    setAiLoading]    = useState(false)
+  const [aiError,      setAiError]      = useState('')
+  const [addingAll,    setAddingAll]    = useState(false)
 
   useEffect(() => {
     if (!taskId) return
     setLoading(true)
-    apiFetch(`/tasks/${taskId}/subtasks`)
+    fetchSubtasks(taskId)
       .then(data => { setSubtasks(data); setLoading(false) })
       .catch(() => setLoading(false))
+  }, [taskId])
+
+  // Live updates from other users
+  useEffect(() => {
+    if (!taskId) return
+    const onCreated = (e) => {
+      if (e.detail.taskId !== taskId) return
+      setSubtasks(prev => prev.some(s => s.id === e.detail.subtask.id) ? prev : [...prev, e.detail.subtask])
+    }
+    const onUpdated = (e) => {
+      if (e.detail.taskId !== taskId) return
+      setSubtasks(prev => prev.map(s => s.id === e.detail.subtask.id ? e.detail.subtask : s))
+    }
+    const onDeleted = (e) => {
+      if (e.detail.taskId !== taskId) return
+      setSubtasks(prev => prev.filter(s => s.id !== e.detail.id))
+    }
+    window.addEventListener('subtask:created', onCreated)
+    window.addEventListener('subtask:updated', onUpdated)
+    window.addEventListener('subtask:deleted', onDeleted)
+    return () => {
+      window.removeEventListener('subtask:created', onCreated)
+      window.removeEventListener('subtask:updated', onUpdated)
+      window.removeEventListener('subtask:deleted', onDeleted)
+    }
   }, [taskId])
 
   const handleAdd = async () => {
     if (!newTitle.trim()) return
     try {
-      const created = await apiFetch(`/tasks/${taskId}/subtasks`, {
-        method: 'POST',
-        body: JSON.stringify({ title: newTitle.trim() }),
-      })
-      setSubtasks(prev => [...prev, created])
+      const created = await createSubtask(taskId, newTitle.trim())
+      setSubtasks(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created])
       setNewTitle('')
       setError('')
     } catch (err) {
@@ -46,19 +62,54 @@ export default function SubtaskPanel({ taskId }) {
 
   const handleToggle = async (sub) => {
     try {
-      const updated = await apiFetch(`/tasks/${taskId}/subtasks/${sub.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ isCompleted: !sub.isCompleted }),
-      })
+      const updated = await updateSubtask(taskId, sub.id, { isCompleted: !sub.isCompleted })
       setSubtasks(prev => prev.map(s => s.id === sub.id ? updated : s))
     } catch {}
   }
 
   const handleDelete = async (id) => {
     try {
-      await apiFetch(`/tasks/${taskId}/subtasks/${id}`, { method: 'DELETE' })
+      await deleteSubtask(taskId, id)
       setSubtasks(prev => prev.filter(s => s.id !== id))
     } catch {}
+  }
+
+  // ── AI handlers ───────────────────────────────────────────
+  const handleAiSuggest = async () => {
+    setAiLoading(true)
+    setAiError('')
+    setSuggestions(null)
+    try {
+      const data = await suggestAiSubtasks(taskId)
+      setSuggestions(data.suggestions || [])
+    } catch (err) {
+      setAiError(err.message || 'AI suggestion failed. Please try again.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleAddSuggestion = async (title) => {
+    try {
+      const created = await createSubtask(taskId, title)
+      setSubtasks(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created])
+      setSuggestions(prev => prev.filter(s => s !== title))
+    } catch (err) {
+      setAiError(err.message)
+    }
+  }
+
+  const handleAddAll = async () => {
+    if (!suggestions?.length) return
+    setAddingAll(true)
+    for (const title of suggestions) {
+      try {
+        const created = await createSubtask(taskId, title)
+        setSubtasks(prev => prev.some(s => s.id === created.id) ? prev : [...prev, created])
+      } catch {}
+    }
+    setSuggestions(null)
+    setAddingAll(false)
   }
 
   const completed = subtasks.filter(s => s.isCompleted).length
@@ -66,6 +117,7 @@ export default function SubtaskPanel({ taskId }) {
 
   return (
     <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '20px 24px', marginTop: 24 }}>
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <p style={{ fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: 0 }}>
@@ -87,7 +139,7 @@ export default function SubtaskPanel({ taskId }) {
 
       {error && <p style={{ fontFamily: FONT, fontSize: '0.8rem', color: '#7c1d24', marginBottom: 8 }}>{error}</p>}
 
-      {/* List */}
+      {/* Subtask list */}
       {loading ? (
         <p style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#888' }}>Loading subtasks...</p>
       ) : (
@@ -109,7 +161,7 @@ export default function SubtaskPanel({ taskId }) {
         </div>
       )}
 
-      {/* Add new subtask */}
+      {/* Manual add */}
       <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
         <input
           type="text"
@@ -119,13 +171,100 @@ export default function SubtaskPanel({ taskId }) {
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
           style={{ flex: 1, padding: '8px 14px', borderRadius: 20, border: '1px solid rgba(0,0,0,0.15)', backgroundColor: 'rgba(255,255,255,0.6)', fontFamily: FONT, fontSize: '0.85rem', outline: 'none' }}
         />
-        <button
-          onClick={handleAdd}
-          style={{ padding: '8px 16px', borderRadius: 20, border: 'none', backgroundColor: '#3a4558', color: '#ddd', fontFamily: FONT, fontSize: '0.85rem', cursor: 'pointer' }}
-        >
+        <button onClick={handleAdd} style={{ padding: '8px 16px', borderRadius: 20, border: 'none', backgroundColor: '#3a4558', color: '#ddd', fontFamily: FONT, fontSize: '0.85rem', cursor: 'pointer' }}>
           Add
         </button>
       </div>
+
+      {/* AI suggest button */}
+      <button
+        onClick={handleAiSuggest}
+        disabled={aiLoading}
+        style={{
+          marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 20,
+          border: '1px dashed rgba(0,0,0,0.25)',
+          backgroundColor: aiLoading ? 'rgba(0,0,0,0.05)' : 'transparent',
+          color: '#555', fontFamily: FONT, fontSize: '0.82rem',
+          cursor: aiLoading ? 'not-allowed' : 'pointer',
+          transition: 'background-color 0.2s',
+        }}
+        onMouseEnter={e => { if (!aiLoading) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)' }}
+        onMouseLeave={e => { if (!aiLoading) e.currentTarget.style.backgroundColor = 'transparent' }}
+      >
+        {aiLoading ? 'Thinking...' : 'AI Suggest subtasks'}
+      </button>
+
+      {/* AI error */}
+      {aiError && (
+        <p style={{ fontFamily: FONT, fontSize: '0.78rem', color: '#7c1d24', marginTop: 6, marginBottom: 0 }}>
+          {aiError}
+        </p>
+      )}
+
+      {/* AI suggestions panel */}
+      {suggestions && suggestions.length > 0 && (
+        <div style={{
+          marginTop: 10, borderRadius: 12, overflow: 'hidden',
+          border: '1px solid rgba(0,0,0,0.12)',
+          backgroundColor: 'rgba(255,255,255,0.55)',
+        }}>
+          {/* Panel header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 12px', backgroundColor: '#3a4558',
+          }}>
+            <span style={{ fontFamily: FONT, fontSize: '0.7rem', fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1, textTransform: 'uppercase' }}>
+              AI Suggestions
+            </span>
+            <span
+              onClick={() => setSuggestions(null)}
+              style={{ color: '#e2e8f0', cursor: 'pointer', fontSize: '0.75rem', opacity: 0.7 }}
+            >✕</span>
+          </div>
+
+          {/* Suggestion rows */}
+          <div style={{ padding: '6px 0' }}>
+            {suggestions.map((title, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 12px',
+                borderBottom: i < suggestions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+              }}>
+                <span style={{ fontFamily: FONT, fontSize: '0.83rem', color: '#222', flex: 1, lineHeight: 1.3 }}>
+                  {title}
+                </span>
+                <button
+                  onClick={() => handleAddSuggestion(title)}
+                  style={{
+                    padding: '3px 12px', borderRadius: 20, border: 'none',
+                    backgroundColor: '#3a4558', color: '#ddd',
+                    fontFamily: FONT, fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  + Add
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add all */}
+          <div style={{ padding: '8px 12px', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+            <button
+              onClick={handleAddAll}
+              disabled={addingAll}
+              style={{
+                width: '100%', padding: '7px 0', borderRadius: 20, border: 'none',
+                backgroundColor: addingAll ? '#888' : '#3a4558',
+                color: '#ddd', fontFamily: FONT, fontSize: '0.82rem',
+                cursor: addingAll ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {addingAll ? 'Adding...' : `Add all ${suggestions.length}`}
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

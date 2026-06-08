@@ -60,7 +60,7 @@ describe('Presentation', () => {
 
   it('renders the clipboard icon', () => {
     renderPresentation()
-    expect(screen.getByText('📋')).toBeInTheDocument()
+    expect(document.querySelector('svg')).toBeInTheDocument()
   })
 
   it('renders Welcome to text', () => {

@@ -23,7 +23,11 @@ export default function InactivityWarning() {
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <div style={styles.icon}>⏰</div>
+        <div style={styles.icon}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
         <h3 style={styles.title}>Session Expiring Soon</h3>
         <p style={styles.message}>
           Your session will expire in <strong>{timeStr}</strong> due to inactivity.

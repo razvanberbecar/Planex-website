@@ -18,14 +18,14 @@ async function sendVerificationCode(to, code, name) {
 
   // ── Log the code prominently (works in all environments) ──
   console.log(`\n  ╔══════════════════════════════════════════════════════════╗`);
-  console.log(`  ║              🔐 VERIFICATION CODE                       ║`);
+  console.log(`  ║               VERIFICATION CODE                         ║`);
   console.log(`  ╠══════════════════════════════════════════════════════════╣`);
   console.log(`  ║  To:   ${(to || '').padEnd(47)}║`);
   console.log(`  ║  User: ${(displayName || '').padEnd(47)}║`);
   console.log(`  ║                                                        ║`);
   console.log(`  ║     Your code is:  ${String(code).padEnd(33)}║`);
   console.log(`  ║                                                        ║`);
-  console.log(`  ║  ⚠  This code expires in 10 minutes                    ║`);
+  console.log(`  ║  [!] This code expires in 10 minutes                   ║`);
   console.log(`  ╚══════════════════════════════════════════════════════════╝\n`);
 
   // ── Send via SMTP if configured ────────────────────────────
@@ -76,7 +76,7 @@ async function sendPasswordResetEmail(to, name, resetUrl, expiresAt) {
 
   // ── Log the reset URL prominently ─────────────────────────
   console.log(`\n  ╔══════════════════════════════════════════════════════════╗`);
-  console.log(`  ║            🔑 PASSWORD RESET REQUEST                    ║`);
+  console.log(`  ║             PASSWORD RESET REQUEST                      ║`);
   console.log(`  ╠══════════════════════════════════════════════════════════╣`);
   console.log(`  ║  To:   ${(to || '').padEnd(47)}║`);
   console.log(`  ║  User: ${(displayName || '').padEnd(47)}║`);
@@ -85,7 +85,7 @@ async function sendPasswordResetEmail(to, name, resetUrl, expiresAt) {
   console.log(`  ║  ${(resetUrl || '').padEnd(55)}║`);
   console.log(`  ║                                                        ║`);
   console.log(`  ║  Expires: ${expiresStr.padEnd(38)}║`);
-  console.log(`  ║  ⚠  This link expires in 1 hour                        ║`);
+  console.log(`  ║  [!] This link expires in 1 hour                       ║`);
   console.log(`  ╚══════════════════════════════════════════════════════════╝\n`);
 
   // ── Send via SMTP if configured ────────────────────────────
@@ -115,7 +115,7 @@ async function sendPasswordResetEmail(to, name, resetUrl, expiresAt) {
       `       style="display: inline-block; background: #2d3445; color: #fff;`,
       `              text-decoration: none; padding: 14px 36px; border-radius: 30px;`,
       `              font-size: 1.1rem; font-weight: bold; letter-spacing: 1px;">`,
-      `      🔑  Reset Password`,
+      `      Reset Password`,
       `    </a>`,
       '  </div>',
       `  <p style="color: #666; font-size: 0.85rem;">`,

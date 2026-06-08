@@ -8,8 +8,7 @@
 //   await logService.log(userId, 'CREATE_TASK', { resourceType: 'Task', resourceId: 123, ... });
 // ──────────────────────────────────────────────────────────────
 
-const { ActivityLog }         = require('../database/models');
-const detectionEngine         = require('./detectionEngine');
+const { ActivityLog } = require('../database/models');
 
 /**
  * Known action constants — use these instead of raw strings.
@@ -107,11 +106,6 @@ async function log({
     IpAddress:    ipAddress,
     UserAgent:    userAgent,
     Timestamp:    new Date(),
-  });
-
-  // Run detection engine asynchronously — don't block the response
-  detectionEngine.analyze(userId, logEntry).catch(err => {
-    console.error('[LogService] Detection engine error:', err.message);
   });
 
   return logEntry;

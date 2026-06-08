@@ -27,7 +27,7 @@ app.use('/api/auth', authRoutes)
 
 // ── PROTECTED REST ENDPOINTS ─────────────────────────────────
 // taskRoutes and subtaskRoutes have their own auth.internalMiddleware now
-app.use('/api/tasks/:taskId/subtasks', subtaskRoutes)
+app.use('/api/tasks/:taskId/subtasks', authenticate, updateLastActivity, subtaskRoutes)
 app.use('/api/tasks',                 taskRoutes)
 app.use('/api/statistics',            statsRoutes)
 
