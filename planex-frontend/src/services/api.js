@@ -432,3 +432,11 @@ export async function updateUserRole(userId, roleId) {
     body: JSON.stringify({ roleId }),
   })
 }
+
+export async function fetchFlaggedUsers() {
+  return request('/admin/flags')
+}
+
+export async function clearUserFlags(userId) {
+  return request(`/admin/flags/${userId}`, { method: 'DELETE' })
+}
