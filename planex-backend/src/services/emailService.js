@@ -2,7 +2,7 @@
 // Email Service
 // Handles sending verification codes and password reset emails.
 // In development mode, all content is logged to console.
-// For production, configure SMTP via environment variables.
+// For production, set RESEND_API_KEY (https://resend.com) — no SMTP needed.
 // ──────────────────────────────────────────────────────────────
 
 /**
@@ -28,8 +28,8 @@ async function sendVerificationCode(to, code, name) {
   console.log(`  ║  [!] This code expires in 10 minutes                   ║`);
   console.log(`  ╚══════════════════════════════════════════════════════════╝\n`);
 
-  // ── Send via SMTP if configured ────────────────────────────
-  await sendViaSmtp({
+  // ── Send via Resend API ────────────────────────────────────
+  await sendViaResend({
     to,
     subject: 'Your Planex Verification Code',
     text: [
@@ -88,8 +88,8 @@ async function sendPasswordResetEmail(to, name, resetUrl, expiresAt) {
   console.log(`  ║  [!] This link expires in 1 hour                       ║`);
   console.log(`  ╚══════════════════════════════════════════════════════════╝\n`);
 
-  // ── Send via SMTP if configured ────────────────────────────
-  await sendViaSmtp({
+  // ── Send via Resend API ────────────────────────────────────
+  await sendViaResend({
     to,
     subject: 'Reset Your Planex Password',
     text: [
@@ -134,42 +134,42 @@ async function sendPasswordResetEmail(to, name, resetUrl, expiresAt) {
 }
 
 /**
- * Internal helper: send email via SMTP if configured.
+ * Internal helper: send email via Resend HTTP API.
+ * Requires RESEND_API_KEY env var. Falls back silently if not set.
  * @param {{ to: string, subject: string, text: string, html: string }} opts
  */
-async function sendViaSmtp({ to, subject, text, html }) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_PORT) {
-    return; // SMTP not configured; content was logged to console
+async function sendViaResend({ to, subject, text, html }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn('[EmailService] RESEND_API_KEY not set — email not sent.');
+    return;
   }
 
+  const from = process.env.SMTP_FROM
+    ? `Planex Security <${process.env.SMTP_FROM}>`
+    : 'Planex Security <onboarding@resend.dev>';
+
   try {
-    const nodemailer = require('nodemailer');
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-      connectionTimeout: 10000,   // 10s to establish TCP connection
-      greetingTimeout: 10000,     // 10s to receive SMTP greeting
-      socketTimeout: 15000,       // 15s for overall socket operations
+      body: JSON.stringify({ from, to, subject, text, html }),
     });
 
-    const info = await transporter.sendMail({
-      from: `"Planex Security" <${process.env.SMTP_FROM || 'noreply@planex.app'}>`,
-      to,
-      subject,
-      text,
-      html,
-    });
+    const data = await res.json();
 
-    console.log(`[EmailService] Email sent via SMTP: ${info.messageId}`);
-    return info;
+    if (!res.ok) {
+      throw new Error(data.message || `Resend API error ${res.status}`);
+    }
+
+    console.log(`[EmailService] Email sent via Resend: ${data.id}`);
+    return data;
   } catch (err) {
-    console.error(`[EmailService] SMTP send failed:`, err.message);
-    // Fall through — content was already logged to console
+    console.error(`[EmailService] Resend send failed:`, err.message);
+    // Fall through — reset URL was already logged to console
   }
 }
 
