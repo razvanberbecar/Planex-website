@@ -366,6 +366,27 @@ export async function updateTaskStatus(id, status) {
   })
 }
 
+export async function searchTasks(q, excludeId) {
+  const params = new URLSearchParams({ q })
+  if (excludeId) params.append('excludeId', excludeId)
+  return request(`/tasks/search?${params}`)
+}
+
+export async function addTaskDependency(taskId, blockedById) {
+  return request(`/tasks/${taskId}/dependencies`, {
+    method: 'POST',
+    body: JSON.stringify({ blockedById }),
+  })
+}
+
+export async function removeTaskDependency(taskId, blockerId) {
+  return request(`/tasks/${taskId}/dependencies/${blockerId}`, { method: 'DELETE' })
+}
+
+export async function fetchTaskActivity(taskId) {
+  return request(`/tasks/${taskId}/activity`)
+}
+
 export async function suggestAiSubtasks(taskId) {
   return request(`/tasks/${taskId}/ai-subtasks`, { method: 'POST' })
 }

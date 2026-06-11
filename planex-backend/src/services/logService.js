@@ -55,6 +55,10 @@ const Actions = Object.freeze({
   VIEW_USERS:                'VIEW_USERS',
   UPDATE_USER_ROLE:          'UPDATE_USER_ROLE',
 
+  // ── Dependencies ──
+  ADD_DEPENDENCY:     'ADD_DEPENDENCY',
+  REMOVE_DEPENDENCY:  'REMOVE_DEPENDENCY',
+
   // ── WebSocket ──
   WS_JOIN:            'WS_JOIN',
   WS_CHAT_MESSAGE:    'WS_CHAT_MESSAGE',

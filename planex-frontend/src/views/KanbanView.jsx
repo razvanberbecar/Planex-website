@@ -310,6 +310,7 @@ export default function KanbanView() {
                         onMouseLeave={e => { e.currentTarget.style.boxShadow = draggedId === task.id ? 'none' : '0 2px 8px rgba(0,0,0,0.12)' }}
                       >
                         <div style={{ fontFamily: FONT, fontSize: '0.85rem', fontWeight: 'bold', color: '#111', marginBottom: 8, lineHeight: 1.3 }}>
+                          {task.isBlocked && <span title="Blocked by incomplete dependencies" style={{ marginRight: 5 }}>🔒</span>}
                           {task.title}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>

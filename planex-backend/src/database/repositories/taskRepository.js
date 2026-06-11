@@ -5,7 +5,7 @@
 // ──────────────────────────────────────────────────────────────
 
 const { Op }        = require('sequelize');
-const { Task, Subtask, TaskCollaborator, User, sequelize } = require('../models');
+const { Task, Subtask, TaskCollaborator, User, TaskDependency, sequelize } = require('../models');
 
 const VALID_PRIORITIES = ['High', 'Medium', 'Low'];
 
@@ -56,7 +56,6 @@ function toDbRow(data) {
  */
 async function findAll(options = {}) {
   const where = {};
-  // Admin sees ALL tasks; non-admin sees only their own tasks
   if (!options.isAdmin && options.userId) {
     where.CreatedBy = options.userId;
   }
@@ -66,7 +65,23 @@ async function findAll(options = {}) {
     include: [{ model: User, as: 'creator', attributes: ['Name'] }],
   });
   const collabs = await TaskCollaborator.findAll({ raw: true });
-  return tasks.map(t => toFrontendTask(t, collabs));
+
+  // Determine which tasks are actively blocked (have at least one incomplete blocker)
+  const allDeps = await TaskDependency.findAll({ raw: true });
+  const taskIdToCompleted = {};
+  tasks.forEach(t => { taskIdToCompleted[t.TaskId] = Boolean(t.IsCompleted); });
+
+  const blockedTaskIds = new Set();
+  allDeps.forEach(d => {
+    // A task is blocked if any of its blockers are not completed
+    const blockerDone = taskIdToCompleted[d.BlockedById];
+    if (!blockerDone) blockedTaskIds.add(d.TaskId);
+  });
+
+  return tasks.map(t => ({
+    ...toFrontendTask(t, collabs),
+    isBlocked: blockedTaskIds.has(t.TaskId),
+  }));
 }
 
 /**
@@ -108,8 +123,20 @@ async function findById(id) {
     raw: true,
   });
 
+  // Fetch dependencies (tasks this task is blocked by)
+  const depRows = await TaskDependency.findAll({ where: { TaskId: id }, raw: true });
+  const blockedBy = await Promise.all(
+    depRows.map(async d => {
+      const blocker = await Task.findByPk(d.BlockedById, { raw: true });
+      if (!blocker) return null;
+      return { id: blocker.TaskId, title: blocker.Title, status: blocker.Status || 'todo', isCompleted: Boolean(blocker.IsCompleted) };
+    })
+  );
+
   return {
     ...toFrontendTask(task, collabs),
+    isBlocked: blockedBy.filter(Boolean).some(b => !b.isCompleted),
+    blockedBy: blockedBy.filter(Boolean),
     subtasks: subtasks.map(s => ({
       id:           s.SubtaskId,
       taskId:       s.TaskId,

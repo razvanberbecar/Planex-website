@@ -240,7 +240,10 @@ export default function MasterView() {
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = overdue ? 'rgba(220,53,69,0.15)' : soon ? 'rgba(255,140,0,0.15)' : 'rgba(0,0,0,0.08)'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = rowBg}
                     >
-                      <td style={tdStyle}>{task.title}</td>
+                      <td style={tdStyle}>
+                        {task.isBlocked && <span title="Blocked by incomplete dependencies" style={{ marginRight: 5 }}>🔒</span>}
+                        {task.title}
+                      </td>
                       <td style={tdStyle}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           {task.dueDate}

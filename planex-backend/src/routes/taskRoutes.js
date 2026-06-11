@@ -8,7 +8,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const taskRepo = require('../database/repositories/taskRepository');
 const subRepo  = require('../database/repositories/subtaskRepository');
-const { User } = require('../database/models');
+const { User, TaskDependency, ActivityLog } = require('../database/models');
 const logService = require('../services/logService');
 const { authenticate, authorize, requirePermission } = require('../middleware/auth');
 const {
@@ -177,6 +177,23 @@ router.get('/statistics', requirePermission('tasks:read'), async (req, res, next
   }
 })
 
+// ── TASK SEARCH (for dependency picker) — must be before /:id ──
+router.get('/search', requirePermission('tasks:read'), async (req, res, next) => {
+  try {
+    const { q, excludeId } = req.query
+    if (!q || q.length < 1) return res.json([])
+    const tasks = await taskRepo.findAll({ isAdmin: true })
+    const term = q.toLowerCase()
+    const results = tasks
+      .filter(t => t.title.toLowerCase().includes(term) && String(t.id) !== String(excludeId))
+      .slice(0, 10)
+      .map(t => ({ id: t.id, title: t.title, status: t.status, isCompleted: t.isCompleted }))
+    res.json(results)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // ── GET single task ────────────────────────────────────────
 // Requires tasks:read permission
 router.get('/:id', idParamRule, handleValidation, requirePermission('tasks:read'), async (req, res, next) => {
@@ -339,11 +356,143 @@ router.patch('/:id/status', idParamRule, handleValidation, requirePermission('ta
     if (!['todo', 'in_progress', 'done'].includes(status)) {
       return res.status(400).json({ error: 'Status must be todo, in_progress, or done.' })
     }
+    const existing = await taskRepo.findById(id)
+    if (!existing) return res.status(404).json({ error: 'Task not found.' })
+
+    // Block moving to in_progress if any dependencies are unfinished
+    if (status === 'in_progress' && existing.isBlocked) {
+      const unfinished = (existing.blockedBy || []).filter(b => !b.isCompleted)
+      return res.status(409).json({
+        error: `This task is blocked by ${unfinished.length} unfinished task(s): ${unfinished.map(b => `"${b.title}"`).join(', ')}.`,
+        code: 'TASK_BLOCKED',
+      })
+    }
+
     const task = await taskRepo.updateStatus(id, status)
-    if (!task) return res.status(404).json({ error: 'Task not found.' })
     task.subtasks = await subRepo.getAllForTask(id)
+
+    const userId = req.user?.UserId
+    if (userId) {
+      logService.log({
+        userId,
+        action: logService.Actions.UPDATE_TASK,
+        resourceType: 'Task',
+        resourceId: id,
+        details: { change: 'status', from: existing.status, to: status },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      }).catch(() => {})
+    }
+
     broadcastTaskEvent('TASK_UPDATED', task)
     res.json(task)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── ADD DEPENDENCY ─────────────────────────────────────────
+// POST /api/tasks/:id/dependencies  { blockedById }
+router.post('/:id/dependencies', idParamRule, handleValidation, requirePermission('tasks:update'), async (req, res, next) => {
+  try {
+    const taskId     = Number(req.params.id)
+    const blockedById = Number(req.body.blockedById)
+    if (!blockedById) return res.status(400).json({ error: 'blockedById is required.' })
+    if (taskId === blockedById) return res.status(400).json({ error: 'A task cannot depend on itself.' })
+
+    const task    = await taskRepo.findById(taskId)
+    const blocker = await taskRepo.findById(blockedById)
+    if (!task)    return res.status(404).json({ error: 'Task not found.' })
+    if (!blocker) return res.status(404).json({ error: 'Blocker task not found.' })
+
+    // Simple cycle check: blockedById must not already be blocked by taskId
+    const reverse = await TaskDependency.findOne({ where: { TaskId: blockedById, BlockedById: taskId } })
+    if (reverse) return res.status(400).json({ error: 'This would create a circular dependency.' })
+
+    await TaskDependency.findOrCreate({ where: { TaskId: taskId, BlockedById: blockedById } })
+
+    logService.log({
+      userId: req.user.UserId,
+      action: logService.Actions.ADD_DEPENDENCY,
+      resourceType: 'Task',
+      resourceId: taskId,
+      details: { blockedById, blockerTitle: blocker.title },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    }).catch(() => {})
+
+    const updated = await taskRepo.findById(taskId)
+    broadcastTaskEvent('TASK_UPDATED', updated)
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── REMOVE DEPENDENCY ──────────────────────────────────────
+// DELETE /api/tasks/:id/dependencies/:blockerId
+router.delete('/:id/dependencies/:blockerId', requirePermission('tasks:update'), async (req, res, next) => {
+  try {
+    const taskId    = Number(req.params.id)
+    const blockerId = Number(req.params.blockerId)
+    await TaskDependency.destroy({ where: { TaskId: taskId, BlockedById: blockerId } })
+
+    const blocker = await taskRepo.findById(blockerId).catch(() => null)
+    logService.log({
+      userId: req.user.UserId,
+      action: logService.Actions.REMOVE_DEPENDENCY,
+      resourceType: 'Task',
+      resourceId: taskId,
+      details: { blockerId, blockerTitle: blocker?.title || '' },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    }).catch(() => {})
+
+    const updated = await taskRepo.findById(taskId)
+    broadcastTaskEvent('TASK_UPDATED', updated)
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── ACTIVITY LOG ───────────────────────────────────────────
+// GET /api/tasks/:id/activity
+router.get('/:id/activity', idParamRule, handleValidation, requirePermission('tasks:read'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const task = await taskRepo.findById(id)
+    if (!task) return res.status(404).json({ error: 'Task not found.' })
+
+    // Get subtask IDs for this task
+    const subtasks = await subRepo.getAllForTask(id)
+    const subtaskIds = subtasks.map(s => s.id)
+
+    // Fetch all activity for this task (direct + subtask events)
+    const entries = await ActivityLog.findAll({
+      where: {
+        [Op.or]: [
+          { ResourceType: 'Task',    ResourceId: id },
+          ...(subtaskIds.length ? [{ ResourceType: 'Subtask', ResourceId: { [Op.in]: subtaskIds } }] : []),
+        ],
+        // Exclude VIEW events — not useful in timeline
+        Action: { [Op.notIn]: ['VIEW_TASK', 'VIEW_TASKS'] },
+      },
+      include: [{ model: User, as: 'user', attributes: ['Name'] }],
+      order: [['Timestamp', 'DESC']],
+      limit: 100,
+    })
+
+    const result = entries.map(e => ({
+      logId:     e.LogId,
+      action:    e.Action,
+      userName:  e.user?.Name || 'System',
+      details:   e.Details ? JSON.parse(e.Details) : null,
+      timestamp: e.Timestamp,
+      resourceType: e.ResourceType,
+    }))
+
+    res.json(result)
   } catch (err) {
     next(err)
   }

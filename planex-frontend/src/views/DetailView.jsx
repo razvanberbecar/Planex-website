@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { fetchTask, createTask, updateTask, deleteTask, searchUsers } from '../services/api'
+import { fetchTask, createTask, updateTask, deleteTask, searchUsers, searchTasks, addTaskDependency, removeTaskDependency, fetchTaskActivity } from '../services/api'
 import { validateTask } from '../utils/validation'
 import { saveLastViewedTask } from '../utils/cookies'
 import SubtaskPanel from '../components/SubtaskPanel'
@@ -156,6 +156,133 @@ function CollaboratorInput({ selected, onAdd, onRemove }) {
   )
 }
 
+// ── Task search autocomplete for dependency picker ────────
+function TaskDependencyInput({ excludeId, selected, onAdd, onRemove }) {
+  const [query, setQuery]   = useState('')
+  const [results, setResults] = useState([])
+  const [open, setOpen]     = useState(false)
+  const [loading, setLoading] = useState(false)
+  const ref     = useRef(null)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (query.length < 1) { setResults([]); setOpen(false); return }
+    timerRef.current = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const tasks = await searchTasks(query, excludeId)
+        setResults(tasks.filter(t => !selected.some(s => s.id === t.id)))
+        setOpen(true)
+      } catch { setResults([]) }
+      setLoading(false)
+    }, 250)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [query, selected, excludeId])
+
+  useEffect(() => {
+    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const STATUS_LABELS = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <input
+        style={inputStyle}
+        placeholder="Search tasks to block this one..."
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        onFocus={() => { if (results.length > 0) setOpen(true) }}
+      />
+      {loading && <span style={{ position: 'absolute', right: 16, top: 14, fontSize: '0.75rem', color: '#888' }}>...</span>}
+      {open && results.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: 12, marginTop: 4, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+          {results.map(t => (
+            <div
+              key={t.id}
+              onClick={() => { onAdd(t); setQuery(''); setResults([]); setOpen(false) }}
+              style={{ padding: '10px 16px', cursor: 'pointer', fontFamily: FONT, fontSize: '0.85rem', color: '#111', borderBottom: '1px solid #eee', transition: 'background-color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <strong>{t.title}</strong>
+              <span style={{ color: '#888', marginLeft: 8, fontSize: '0.75rem' }}>{STATUS_LABELS[t.status] || t.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          {selected.map(t => (
+            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: t.isCompleted ? '#d1e7dd' : '#f8d7da', color: t.isCompleted ? '#0a3622' : '#7c1d24', padding: '4px 12px', borderRadius: 20, fontSize: '0.8rem', fontFamily: FONT }}>
+              {!t.isCompleted && '🔒 '}{t.title}
+              <span onClick={() => onRemove(t.id)} style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', opacity: 0.7 }}>×</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Activity timeline helpers ─────────────────────────────
+const STATUS_LABELS_ACTIVITY = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' }
+
+function formatActivity(entry) {
+  const d = entry.details || {}
+  switch (entry.action) {
+    case 'CREATE_TASK':      return 'created this task'
+    case 'UPDATE_TASK':
+      if (d.change === 'status') return `moved to ${STATUS_LABELS_ACTIVITY[d.to] || d.to}`
+      if (d.change === 'completed') return d.isCompleted ? 'marked as completed' : 'reopened the task'
+      return 'updated the task'
+    case 'TOGGLE_TASK':      return d.isCompleted ? 'marked as completed' : 'reopened the task'
+    case 'DELETE_TASK':      return 'deleted this task'
+    case 'CREATE_SUBTASK':   return `added subtask "${d.title || ''}"`
+    case 'UPDATE_SUBTASK':
+      if (d.isCompleted === true)  return `completed subtask "${d.title || ''}"`
+      if (d.isCompleted === false) return `reopened subtask "${d.title || ''}"`
+      return 'updated a subtask'
+    case 'DELETE_SUBTASK':   return `removed subtask "${d.title || ''}"`
+    case 'ADD_DEPENDENCY':   return `added blocker: "${d.blockerTitle || `#${d.blockedById}`}"`
+    case 'REMOVE_DEPENDENCY':return `removed blocker: "${d.blockerTitle || `#${d.blockerId}`}"`
+    default: return entry.action.toLowerCase().replace(/_/g, ' ')
+  }
+}
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000)
+  if (diff < 60)  return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
+function ActivityTimeline({ activity, loading }) {
+  if (loading) return <p style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#555' }}>Loading activity...</p>
+  if (!activity.length) return <p style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#888' }}>No activity recorded yet.</p>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {activity.map((entry, i) => (
+        <div key={entry.id || i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: i < activity.length - 1 ? '1px solid rgba(0,0,0,0.08)' : 'none' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#3a4558', color: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0 }}>
+            {(entry.userName || '?').charAt(0).toUpperCase()}
+          </div>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#222' }}>
+              <strong>{entry.userName || 'Unknown'}</strong> {formatActivity(entry)}
+            </span>
+            <span style={{ fontFamily: FONT, fontSize: '0.75rem', color: '#888', marginLeft: 8 }}>{timeAgo(entry.createdAt)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function DetailView() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -178,6 +305,10 @@ export default function DetailView() {
 
   const [errors, setErrors] = useState({})
 
+  const [blockedBy, setBlockedBy]           = useState([])
+  const [activity, setActivity]             = useState([])
+  const [activityLoading, setActivityLoading] = useState(false)
+
   // Load task from API when viewing/editing
   useEffect(() => {
     if (isNew) return
@@ -198,8 +329,15 @@ export default function DetailView() {
         setCollaborators(
           (data.collaborators || []).map(name => ({ UserId: null, Name: name }))
         )
+        setBlockedBy(data.blockedBy || [])
         saveLastViewedTask(data.id)
         setLoading(false)
+        // Fetch activity log
+        setActivityLoading(true)
+        fetchTaskActivity(id)
+          .then(logs => setActivity(logs || []))
+          .catch(() => setActivity([]))
+          .finally(() => setActivityLoading(false))
       })
       .catch(() => { setLoading(false) })
   }, [id])
@@ -262,6 +400,25 @@ export default function DetailView() {
     try {
       const updated = await updateTask(task.id, { isCompleted: !task.isCompleted })
       setTask(updated)
+    } catch (err) {
+      setApiError(err.message)
+    }
+  }
+
+  const handleAddDep = async (blocker) => {
+    if (blockedBy.some(b => b.id === blocker.id)) return
+    try {
+      await addTaskDependency(task.id, blocker.id)
+      setBlockedBy(prev => [...prev, blocker])
+    } catch (err) {
+      setApiError(err.message)
+    }
+  }
+
+  const handleRemoveDep = async (blockerId) => {
+    try {
+      await removeTaskDependency(task.id, blockerId)
+      setBlockedBy(prev => prev.filter(b => b.id !== blockerId))
     } catch (err) {
       setApiError(err.message)
     }
@@ -333,6 +490,17 @@ export default function DetailView() {
                   onRemove={(userId) => setCollaborators(prev => prev.filter(c => c.UserId !== userId))}
                 />
               </div>
+              {mode === 'edit' && (
+                <div>
+                  <p style={{ fontFamily: FONT, fontSize: '0.8rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 6px 18px' }}>Blocked by</p>
+                  <TaskDependencyInput
+                    excludeId={task?.id}
+                    selected={blockedBy}
+                    onAdd={handleAddDep}
+                    onRemove={handleRemoveDep}
+                  />
+                </div>
+              )}
               <div>
                 <select name="priority" value={fields.priority} onChange={handleChange} style={{ ...inputStyle, borderRadius: 30, cursor: 'pointer' }}>
                   <option value="High">High Priority</option>
@@ -410,12 +578,28 @@ export default function DetailView() {
                 Created by: {task.createdByName}
               </p>
             )}
-            <div style={{ display: 'flex', gap: 30, alignItems: 'flex-start' }}>
-              <div style={{ flex: 1, backgroundColor: '#f5f5d0', borderRadius: 18, padding: '20px 24px', minHeight: 300, fontFamily: FONT, fontSize: '0.95rem', color: '#222', lineHeight: 1.7, whiteSpace: 'pre-wrap', textAlign: 'left' }}>
-                {task.description || <span style={{ color: '#888' }}>No description.</span>}
+            {/* Blocked warning banner */}
+            {blockedBy.some(b => !b.isCompleted) && (
+              <div style={{ fontFamily: FONT, fontSize: '0.9rem', backgroundColor: '#f8d7da', color: '#7c1d24', padding: '10px 18px', borderRadius: 10, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                🔒 This task is blocked and cannot move to In Progress until all dependencies are completed.
               </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 30, alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '20px 24px', minHeight: 300, fontFamily: FONT, fontSize: '0.95rem', color: '#222', lineHeight: 1.7, whiteSpace: 'pre-wrap', textAlign: 'left' }}>
+                  {task.description || <span style={{ color: '#888' }}>No description.</span>}
+                </div>
+
+                {/* Activity timeline */}
+                <div style={{ marginTop: 24, backgroundColor: '#f5f5d0', borderRadius: 18, padding: '20px 24px' }}>
+                  <p style={{ fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 14px 0' }}>Activity</p>
+                  <ActivityTimeline activity={activity} loading={activityLoading} />
+                </div>
+              </div>
+
               <div style={{ width: 220, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '16px 20px', minHeight: 160 }}>
+                <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '16px 20px', minHeight: 80 }}>
                   <p style={{ fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px 0' }}>Collaborators</p>
                   {task.collaborators && task.collaborators.length > 0 ? (
                     task.collaborators.map((c, i) => (
@@ -425,6 +609,23 @@ export default function DetailView() {
                     <p style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#888' }}>None</p>
                   )}
                 </div>
+
+                {/* Blocked by panel */}
+                {blockedBy.length > 0 && (
+                  <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '16px 20px' }}>
+                    <p style={{ fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px 0' }}>Blocked by</p>
+                    {blockedBy.map(b => (
+                      <div key={b.id} onClick={() => navigate(`/tasks/${b.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginBottom: 6, padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                        <span style={{ fontSize: '0.8rem' }}>{b.isCompleted ? '✓' : '🔒'}</span>
+                        <span style={{ fontFamily: FONT, fontSize: '0.85rem', color: b.isCompleted ? '#0a3622' : '#7c1d24', textDecoration: 'underline', flex: 1 }}>{b.title}</span>
+                        <span style={{ fontFamily: FONT, fontSize: '0.7rem', color: '#888', backgroundColor: b.status === 'done' ? '#d1e7dd' : b.status === 'in_progress' ? '#fff3cd' : '#e9e9e9', padding: '2px 6px', borderRadius: 10 }}>
+                          {b.status === 'done' ? 'Done' : b.status === 'in_progress' ? 'In Progress' : 'To Do'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <SubtaskPanel taskId={task.id} />
                 {/* Only task creator or admin can delete */}
                 {(isAdmin || Number(task.createdBy) === Number(user?.UserId)) && (
