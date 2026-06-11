@@ -2,7 +2,7 @@
 // Email Service
 // Handles sending verification codes and password reset emails.
 // In development mode, all content is logged to console.
-// For production, set RESEND_API_KEY (https://resend.com) — no SMTP needed.
+// For production, set BREVO_API_KEY (https://brevo.com) — no SMTP needed.
 // ──────────────────────────────────────────────────────────────
 
 /**
@@ -29,7 +29,7 @@ async function sendVerificationCode(to, code, name) {
   console.log(`  ╚══════════════════════════════════════════════════════════╝\n`);
 
   // ── Send via Resend API ────────────────────────────────────
-  await sendViaResend({
+  await sendViaBrevo({
     to,
     subject: 'Your Planex Verification Code',
     text: [
@@ -89,7 +89,7 @@ async function sendPasswordResetEmail(to, name, resetUrl, expiresAt) {
   console.log(`  ╚══════════════════════════════════════════════════════════╝\n`);
 
   // ── Send via Resend API ────────────────────────────────────
-  await sendViaResend({
+  await sendViaBrevo({
     to,
     subject: 'Reset Your Planex Password',
     text: [
@@ -134,41 +134,46 @@ async function sendPasswordResetEmail(to, name, resetUrl, expiresAt) {
 }
 
 /**
- * Internal helper: send email via Resend HTTP API.
- * Requires RESEND_API_KEY env var. Falls back silently if not set.
+ * Internal helper: send email via Brevo HTTP API.
+ * Requires BREVO_API_KEY env var. Falls back silently if not set.
+ * Sender address must be verified in your Brevo account (Senders & IP).
  * @param {{ to: string, subject: string, text: string, html: string }} opts
  */
-async function sendViaResend({ to, subject, text, html }) {
-  const apiKey = process.env.RESEND_API_KEY;
+async function sendViaBrevo({ to, subject, text, html }) {
+  const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.warn('[EmailService] RESEND_API_KEY not set — email not sent.');
+    console.warn('[EmailService] BREVO_API_KEY not set — email not sent.');
     return;
   }
 
-  const from = process.env.SMTP_FROM
-    ? `Planex Security <${process.env.SMTP_FROM}>`
-    : 'Planex Security <onboarding@resend.dev>';
+  const senderEmail = process.env.SMTP_FROM || 'noreply@planex.app';
 
   try {
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'api-key': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from, to, subject, text, html }),
+      body: JSON.stringify({
+        sender: { name: 'Planex Security', email: senderEmail },
+        to: [{ email: to }],
+        subject,
+        textContent: text,
+        htmlContent: html,
+      }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.message || `Resend API error ${res.status}`);
+      throw new Error(data.message || `Brevo API error ${res.status}`);
     }
 
-    console.log(`[EmailService] Email sent via Resend: ${data.id}`);
+    console.log(`[EmailService] Email sent via Brevo: ${data.messageId}`);
     return data;
   } catch (err) {
-    console.error(`[EmailService] Resend send failed:`, err.message);
+    console.error(`[EmailService] Brevo send failed:`, err.message);
     // Fall through — reset URL was already logged to console
   }
 }
