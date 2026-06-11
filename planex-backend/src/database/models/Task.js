@@ -68,6 +68,24 @@ module.exports = (sequelize, DataTypes) => {
         isIn: { args: [['todo', 'in_progress', 'done']], msg: 'Status must be todo, in_progress, or done.' },
       },
     },
+    RecurrenceType: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'none',
+      validate: {
+        isIn: { args: [['none', 'daily', 'weekly', 'monthly']], msg: 'RecurrenceType must be none, daily, weekly, or monthly.' },
+      },
+    },
+    RecurrenceStart: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+      defaultValue: null,
+    },
+    RecurrenceEnd: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+      defaultValue: null,
+    },
   }, {
     sequelize,
     modelName: 'Task',

@@ -170,6 +170,7 @@ export default function DetailView() {
 
   const [fields, setFields] = useState({
     title: '', description: '', dueDate: '', priority: 'Medium',
+    recurrenceType: 'none', recurrenceStart: '', recurrenceEnd: '',
   })
 
   // Collaborators: array of { UserId, Name } objects for the autocomplete
@@ -185,10 +186,13 @@ export default function DetailView() {
       .then(data => {
         setTask(data)
         setFields({
-          title:         data.title,
-          description:   data.description || '',
-          dueDate:       data.dueDate,
-          priority:      data.priority || 'Medium',
+          title:           data.title,
+          description:     data.description || '',
+          dueDate:         data.dueDate,
+          priority:        data.priority || 'Medium',
+          recurrenceType:  data.recurrenceType || 'none',
+          recurrenceStart: data.recurrenceStart || '',
+          recurrenceEnd:   data.recurrenceEnd || '',
         })
         // Convert string collaborators to { UserId: null, Name } objects
         setCollaborators(
@@ -211,8 +215,11 @@ export default function DetailView() {
 
     const payload = {
       ...fields,
-      collaborators: collaborators.map(c => c.Name),
-      createdBy: user?.UserId,
+      collaborators:   collaborators.map(c => c.Name),
+      createdBy:       user?.UserId,
+      recurrenceType:  fields.recurrenceType || 'none',
+      recurrenceStart: fields.recurrenceType !== 'none' ? fields.recurrenceStart : null,
+      recurrenceEnd:   fields.recurrenceType !== 'none' ? fields.recurrenceEnd : null,
     }
 
     try {
@@ -318,6 +325,38 @@ export default function DetailView() {
                   <option value="Low">Low Priority</option>
                 </select>
               </div>
+
+              {/* ── Recurrence ── */}
+              <div>
+                <select name="recurrenceType" value={fields.recurrenceType} onChange={handleChange} style={{ ...inputStyle, borderRadius: 30, cursor: 'pointer' }}>
+                  <option value="none">No Recurrence</option>
+                  <option value="daily">Repeats Daily</option>
+                  <option value="weekly">Repeats Weekly</option>
+                  <option value="monthly">Repeats Monthly</option>
+                </select>
+              </div>
+              {fields.recurrenceType !== 'none' && (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      style={inputStyle}
+                      name="recurrenceStart"
+                      placeholder="Start Date (YYYY-MM-DD)"
+                      value={fields.recurrenceStart}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      style={inputStyle}
+                      name="recurrenceEnd"
+                      placeholder="End Date (YYYY-MM-DD)"
+                      value={fields.recurrenceEnd}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
               <button style={{ ...actionBtnStyle, width: 280 }} onClick={handleSubmit}>
@@ -342,6 +381,15 @@ export default function DetailView() {
               </span>
             </div>
             <p style={{ fontFamily: FONT, fontSize: '1rem', color: '#333', marginBottom: 8 }}>Due Date — {task.dueDate}</p>
+            {task.recurrenceType && task.recurrenceType !== 'none' && (
+              <p style={{ fontFamily: FONT, fontSize: '0.9rem', color: '#333', marginBottom: 8 }}>
+                ↻ Repeats{' '}
+                <strong>{task.recurrenceType}</strong>
+                {task.recurrenceStart && task.recurrenceEnd && (
+                  <> from <strong>{task.recurrenceStart}</strong> to <strong>{task.recurrenceEnd}</strong></>
+                )}
+              </p>
+            )}
             {task.createdByName && (
               <p style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#555', marginBottom: 24, fontStyle: 'italic' }}>
                 Created by: {task.createdByName}

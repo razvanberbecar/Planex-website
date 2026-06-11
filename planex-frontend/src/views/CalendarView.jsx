@@ -31,6 +31,23 @@ function SidebarItem({ icon, label, active, onClick }) {
   )
 }
 
+// Returns true if a recurring task falls on the given dateStr (YYYY-MM-DD)
+function isRecurringOnDay(task, dateStr) {
+  if (!task.recurrenceType || task.recurrenceType === 'none') return false
+  if (!task.recurrenceStart || !task.recurrenceEnd) return false
+
+  const date  = new Date(dateStr + 'T00:00:00')
+  const start = new Date(task.recurrenceStart + 'T00:00:00')
+  const end   = new Date(task.recurrenceEnd   + 'T00:00:00')
+
+  if (date < start || date > end) return false
+
+  if (task.recurrenceType === 'daily')   return true
+  if (task.recurrenceType === 'weekly')  return date.getDay()  === start.getDay()
+  if (task.recurrenceType === 'monthly') return date.getDate() === start.getDate()
+  return false
+}
+
 function buildCells(year, month) {
   const firstDow     = new Date(year, month, 1).getDay()
   const daysInMonth  = new Date(year, month + 1, 0).getDate()
@@ -100,11 +117,13 @@ export default function CalendarView() {
   const tasksForDay = (cell) => {
     if (!cell.current) return []
     const d = dateStr(viewYear, viewMonth, cell.day)
-    return tasks.filter(t => t.dueDate === d)
+    return tasks.filter(t => t.dueDate === d || isRecurringOnDay(t, d))
   }
 
   const selectedDateStr = selectedDay !== null ? dateStr(viewYear, viewMonth, selectedDay) : null
-  const selectedTasks   = tasks.filter(t => t.dueDate === selectedDateStr)
+  const selectedTasks   = selectedDateStr
+    ? tasks.filter(t => t.dueDate === selectedDateStr || isRecurringOnDay(t, selectedDateStr))
+    : []
 
   const prevMonth = () => {
     setSelectedDay(null)
@@ -131,9 +150,18 @@ export default function CalendarView() {
     viewYear === today.getFullYear()
 
   const monthTaskCount = tasks.filter(t => {
-    if (!t.dueDate) return false
-    const [y, m] = t.dueDate.split('-').map(Number)
-    return y === viewYear && m === viewMonth + 1
+    if (t.dueDate) {
+      const [y, m] = t.dueDate.split('-').map(Number)
+      if (y === viewYear && m === viewMonth + 1) return true
+    }
+    if (t.recurrenceType && t.recurrenceType !== 'none' && t.recurrenceStart && t.recurrenceEnd) {
+      const monthStart = new Date(viewYear, viewMonth, 1)
+      const monthEnd   = new Date(viewYear, viewMonth + 1, 0)
+      const recStart   = new Date(t.recurrenceStart + 'T00:00:00')
+      const recEnd     = new Date(t.recurrenceEnd   + 'T00:00:00')
+      if (recStart <= monthEnd && recEnd >= monthStart) return true
+    }
+    return false
   }).length
 
   const handleLogout = async () => { await logout(); navigate('/') }
@@ -317,6 +345,7 @@ export default function CalendarView() {
                     {/* Task chips */}
                     {dayTasks.slice(0, MAX_CHIPS).map(task => {
                       const pc = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.Low
+                      const isRecurring = task.recurrenceType && task.recurrenceType !== 'none'
                       return (
                         <div
                           key={task.id}
@@ -334,6 +363,7 @@ export default function CalendarView() {
                           onMouseEnter={e => e.currentTarget.style.filter = 'brightness(0.9)'}
                           onMouseLeave={e => e.currentTarget.style.filter = 'none'}
                         >
+                          {isRecurring && <span style={{ marginRight: 3 }}>↻</span>}
                           {task.title}
                         </div>
                       )
@@ -378,6 +408,7 @@ export default function CalendarView() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {selectedTasks.map(task => {
                     const pc = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.Low
+                    const isRecurring = task.recurrenceType && task.recurrenceType !== 'none'
                     return (
                       <div
                         key={task.id}
@@ -408,6 +439,13 @@ export default function CalendarView() {
                           }}>
                             {task.priority}
                           </span>
+                          {isRecurring && (
+                            <span style={{
+                              fontFamily: FONT, fontSize: '0.62rem', fontWeight: 'bold',
+                              padding: '2px 8px', borderRadius: 20,
+                              backgroundColor: '#e0e7ff', color: '#3730a3',
+                            }}>↻ {task.recurrenceType}</span>
+                          )}
                           {task.isCompleted && (
                             <span style={{
                               fontFamily: FONT, fontSize: '0.62rem', fontWeight: 'bold',

@@ -19,9 +19,12 @@ function toFrontendTask(row, collabRows = []) {
     collaborators: collabRows.filter(c => c.TaskId === row.TaskId).map(c => c.Username),
     isCompleted:   Boolean(row.IsCompleted),
     priority:      row.Priority,
-    status:        row.Status || 'todo',
-    createdBy:     row.CreatedBy || null,
-    createdByName: row['creator.Name'] || null,
+    status:          row.Status || 'todo',
+    createdBy:       row.CreatedBy || null,
+    createdByName:   row['creator.Name'] || null,
+    recurrenceType:  row.RecurrenceType || 'none',
+    recurrenceStart: row.RecurrenceStart || null,
+    recurrenceEnd:   row.RecurrenceEnd || null,
   };
 }
 
@@ -30,8 +33,11 @@ function toDbRow(data) {
     Title:       data.title,
     Description: data.description || '',
     DueDate:     data.dueDate,
-    IsCompleted: data.isCompleted !== undefined ? data.isCompleted : false,
-    Priority:    data.priority || 'Medium',
+    IsCompleted:     data.isCompleted !== undefined ? data.isCompleted : false,
+    Priority:        data.priority || 'Medium',
+    RecurrenceType:  data.recurrenceType || 'none',
+    RecurrenceStart: data.recurrenceStart || null,
+    RecurrenceEnd:   data.recurrenceEnd || null,
   };
   // Include CreatedBy if provided
   if (data.createdBy !== undefined) {
@@ -152,8 +158,11 @@ async function update(id, data) {
     description: 'Description',
     dueDate: 'DueDate',
     priority: 'Priority',
-    isCompleted: 'IsCompleted',
-    status: 'Status',
+    isCompleted:     'IsCompleted',
+    status:          'Status',
+    recurrenceType:  'RecurrenceType',
+    recurrenceStart: 'RecurrenceStart',
+    recurrenceEnd:   'RecurrenceEnd',
   };
 
   const dbUpdates = {};
