@@ -156,6 +156,55 @@ function CollaboratorInput({ selected, onAdd, onRemove }) {
   )
 }
 
+// ── Dependency panel (view mode) ─────────────────────────
+function DependencyPanel({ taskId, blockedBy, onAdd, onRemove, navigate }) {
+  const [adding, setAdding] = useState(false)
+  const STATUS_COLORS = { done: '#d1e7dd', in_progress: '#fff3cd', todo: '#e9e9e9' }
+  const STATUS_LABELS = { done: 'Done', in_progress: 'In Progress', todo: 'To Do' }
+
+  return (
+    <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '16px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <p style={{ fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: 0 }}>Blocked by</p>
+        <button
+          onClick={() => setAdding(a => !a)}
+          style={{ fontFamily: FONT, fontSize: '0.75rem', padding: '3px 10px', borderRadius: 20, border: '1px solid #3a4558', backgroundColor: adding ? '#3a4558' : 'transparent', color: adding ? '#ddd' : '#3a4558', cursor: 'pointer' }}
+        >
+          {adding ? 'Cancel' : '+ Add'}
+        </button>
+      </div>
+
+      {blockedBy.length === 0 && !adding && (
+        <p style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#888', margin: 0 }}>None</p>
+      )}
+
+      {blockedBy.map(b => (
+        <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+          <span style={{ fontSize: '0.8rem', cursor: 'pointer' }} onClick={() => navigate(`/tasks/${b.id}`)}>
+            {b.isCompleted ? '✓' : '🔒'}
+          </span>
+          <span onClick={() => navigate(`/tasks/${b.id}`)} style={{ fontFamily: FONT, fontSize: '0.85rem', color: b.isCompleted ? '#0a3622' : '#7c1d24', textDecoration: 'underline', flex: 1, cursor: 'pointer' }}>{b.title}</span>
+          <span style={{ fontFamily: FONT, fontSize: '0.7rem', color: '#555', backgroundColor: STATUS_COLORS[b.status] || '#e9e9e9', padding: '2px 6px', borderRadius: 10 }}>
+            {STATUS_LABELS[b.status] || b.status}
+          </span>
+          <span onClick={() => onRemove(b.id)} title="Remove dependency" style={{ cursor: 'pointer', color: '#999', fontSize: '0.85rem', fontWeight: 'bold', marginLeft: 2 }}>×</span>
+        </div>
+      ))}
+
+      {adding && (
+        <div style={{ marginTop: 8 }}>
+          <TaskDependencyInput
+            excludeId={taskId}
+            selected={blockedBy}
+            onAdd={(t) => { onAdd(t); setAdding(false) }}
+            onRemove={onRemove}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Task search autocomplete for dependency picker ────────
 function TaskDependencyInput({ excludeId, selected, onAdd, onRemove }) {
   const [query, setQuery]   = useState('')
@@ -267,7 +316,7 @@ function ActivityTimeline({ activity, loading }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {activity.map((entry, i) => (
-        <div key={entry.id || i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: i < activity.length - 1 ? '1px solid rgba(0,0,0,0.08)' : 'none' }}>
+        <div key={entry.logId || i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: i < activity.length - 1 ? '1px solid rgba(0,0,0,0.08)' : 'none' }}>
           <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#3a4558', color: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0 }}>
             {(entry.userName || '?').charAt(0).toUpperCase()}
           </div>
@@ -275,7 +324,7 @@ function ActivityTimeline({ activity, loading }) {
             <span style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#222' }}>
               <strong>{entry.userName || 'Unknown'}</strong> {formatActivity(entry)}
             </span>
-            <span style={{ fontFamily: FONT, fontSize: '0.75rem', color: '#888', marginLeft: 8 }}>{timeAgo(entry.createdAt)}</span>
+            <span style={{ fontFamily: FONT, fontSize: '0.75rem', color: '#888', marginLeft: 8 }}>{timeAgo(entry.timestamp)}</span>
           </div>
         </div>
       ))}
@@ -490,17 +539,6 @@ export default function DetailView() {
                   onRemove={(userId) => setCollaborators(prev => prev.filter(c => c.UserId !== userId))}
                 />
               </div>
-              {mode === 'edit' && (
-                <div>
-                  <p style={{ fontFamily: FONT, fontSize: '0.8rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 6px 18px' }}>Blocked by</p>
-                  <TaskDependencyInput
-                    excludeId={task?.id}
-                    selected={blockedBy}
-                    onAdd={handleAddDep}
-                    onRemove={handleRemoveDep}
-                  />
-                </div>
-              )}
               <div>
                 <select name="priority" value={fields.priority} onChange={handleChange} style={{ ...inputStyle, borderRadius: 30, cursor: 'pointer' }}>
                   <option value="High">High Priority</option>
@@ -610,21 +648,8 @@ export default function DetailView() {
                   )}
                 </div>
 
-                {/* Blocked by panel */}
-                {blockedBy.length > 0 && (
-                  <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '16px 20px' }}>
-                    <p style={{ fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px 0' }}>Blocked by</p>
-                    {blockedBy.map(b => (
-                      <div key={b.id} onClick={() => navigate(`/tasks/${b.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginBottom: 6, padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-                        <span style={{ fontSize: '0.8rem' }}>{b.isCompleted ? '✓' : '🔒'}</span>
-                        <span style={{ fontFamily: FONT, fontSize: '0.85rem', color: b.isCompleted ? '#0a3622' : '#7c1d24', textDecoration: 'underline', flex: 1 }}>{b.title}</span>
-                        <span style={{ fontFamily: FONT, fontSize: '0.7rem', color: '#888', backgroundColor: b.status === 'done' ? '#d1e7dd' : b.status === 'in_progress' ? '#fff3cd' : '#e9e9e9', padding: '2px 6px', borderRadius: 10 }}>
-                          {b.status === 'done' ? 'Done' : b.status === 'in_progress' ? 'In Progress' : 'To Do'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Blocked by panel — always visible with inline add */}
+                <DependencyPanel taskId={task.id} blockedBy={blockedBy} onAdd={handleAddDep} onRemove={handleRemoveDep} navigate={navigate} />
 
                 <SubtaskPanel taskId={task.id} />
                 {/* Only task creator or admin can delete */}
