@@ -36,41 +36,39 @@ async function suggestSubtasks(title, description) {
     .slice(0, 6)
 }
 
-// ── Chat filter ───────────────────────────────────────────────────────────────
-const CHAT_FILTER_PROMPT = `You are a chat message filter. Given a list of chat messages and a search query, return ONLY a JSON array of the _id values of messages that are relevant to the query. Include a message if its text meaningfully relates to the query topic. No explanation, no markdown — just the raw JSON array of id strings.`
+// ── Toxicity check ────────────────────────────────────────────────────────────
+const TOXICITY_PROMPT = `You are a content moderation system. Determine if the following chat message contains toxic, offensive, hateful, or harmful content — including profanity, insults, harassment, threats, hate speech, or encouragement of self-harm. Respond with ONLY valid JSON in the form {"toxic":true} or {"toxic":false}. No explanation, no extra text.`
 
-async function filterChatMessages(messages, query) {
+async function checkToxicity(text) {
   if (!process.env.GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not configured on the server.')
+    // If no key configured, allow the message through
+    return { toxic: false }
   }
 
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+  try {
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-  // Trim to last 200 messages to stay within token limits
-  const trimmed = messages.slice(-200)
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: TOXICITY_PROMPT },
+        { role: 'user', content: text },
+      ],
+      temperature: 0,
+      max_tokens: 20,
+    })
 
-  const msgList = trimmed.map(m => `[id:${m._id}] ${m.userName}: ${m.text}`).join('\n')
+    const raw = completion.choices[0]?.message?.content?.trim() || '{}'
+    const match = raw.match(/\{[\s\S]*?\}/)
+    if (!match) return { toxic: false }
 
-  const completion = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    messages: [
-      { role: 'system', content: CHAT_FILTER_PROMPT },
-      {
-        role: 'user',
-        content: `Search query: "${query}"\n\nMessages:\n${msgList}\n\nReturn a JSON array of matching _id strings.`,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 800,
-  })
-
-  const raw = completion.choices[0]?.message?.content?.trim() || '[]'
-  const match = raw.match(/\[[\s\S]*?\]/)
-  if (!match) return []
-
-  const parsed = JSON.parse(match[0])
-  if (!Array.isArray(parsed)) return []
-  return parsed.filter(id => typeof id === 'string')
+    const parsed = JSON.parse(match[0])
+    return { toxic: Boolean(parsed.toxic) }
+  } catch (err) {
+    console.error('[AI] checkToxicity error:', err.message)
+    // Fail open — don't block messages if AI is unavailable
+    return { toxic: false }
+  }
 }
 
-module.exports = { suggestSubtasks, filterChatMessages }
+module.exports = { suggestSubtasks, checkToxicity }

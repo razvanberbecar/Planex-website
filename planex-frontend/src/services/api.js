@@ -323,14 +323,6 @@ export async function updateProfile(name) {
 // 7. TASKS
 // ══════════════════════════════════════════════════════════════
 
-// ── AI Chat Filter ────────────────────────────────────────────
-export async function filterChatMessages(messages, query) {
-  return request('/api/ai/chat-filter', {
-    method: 'POST',
-    body: JSON.stringify({ messages, query }),
-  })
-}
-
 export async function fetchTasks(params = {}) {
   const query = new URLSearchParams()
   if (params.page)     query.set('page',     params.page)

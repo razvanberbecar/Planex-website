@@ -102,6 +102,15 @@ export function ChatProvider({ children }) {
           case 'SUBTASK_DELETED':
             window.dispatchEvent(new CustomEvent('subtask:deleted', { detail: msg.payload }))
             break
+
+          case 'MESSAGE_REJECTED':
+            // Only the sender sees this — inject a local system warning
+            setMessages(prev => [...prev, {
+              _id: `sys-rejected-${Date.now()}`,
+              system: true,
+              text: `⚠️ ${msg.payload.reason}`,
+            }])
+            break
         }
       } catch { /* ignore malformed messages */ }
     }

@@ -1,5 +1,6 @@
 const { WebSocketServer } = require('ws')
 const { getDb } = require('../database/mongodb')
+const { checkToxicity } = require('../services/aiService')
 
 let wss = null
 
@@ -126,7 +127,7 @@ function attachWebSocket(httpServer) {
             break
           }
 
-          // ── CHAT_MESSAGE: store + broadcast ──
+          // ── CHAT_MESSAGE: toxicity check, then store + broadcast ──
           case 'CHAT_MESSAGE': {
             const clientInfo = clients.get(ws)
             if (!clientInfo) {
@@ -136,6 +137,16 @@ function attachWebSocket(httpServer) {
 
             const { text, room } = msg.payload
             if (!text || !text.trim()) return
+
+            // ── Toxicity guard ────────────────────────────────────
+            const { toxic } = await checkToxicity(text.trim())
+            if (toxic) {
+              ws.send(JSON.stringify({
+                type: 'MESSAGE_REJECTED',
+                payload: { reason: 'Your message was blocked for containing inappropriate content.' },
+              }))
+              return
+            }
 
             const saved = await saveMessage(
               room || 'general',
