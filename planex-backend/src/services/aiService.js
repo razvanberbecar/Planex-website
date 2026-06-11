@@ -36,4 +36,41 @@ async function suggestSubtasks(title, description) {
     .slice(0, 6)
 }
 
-module.exports = { suggestSubtasks }
+// ── Chat filter ───────────────────────────────────────────────────────────────
+const CHAT_FILTER_PROMPT = `You are a chat message filter. Given a list of chat messages and a search query, return ONLY a JSON array of the _id values of messages that are relevant to the query. Include a message if its text meaningfully relates to the query topic. No explanation, no markdown — just the raw JSON array of id strings.`
+
+async function filterChatMessages(messages, query) {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY is not configured on the server.')
+  }
+
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+  // Trim to last 200 messages to stay within token limits
+  const trimmed = messages.slice(-200)
+
+  const msgList = trimmed.map(m => `[id:${m._id}] ${m.userName}: ${m.text}`).join('\n')
+
+  const completion = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      { role: 'system', content: CHAT_FILTER_PROMPT },
+      {
+        role: 'user',
+        content: `Search query: "${query}"\n\nMessages:\n${msgList}\n\nReturn a JSON array of matching _id strings.`,
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 800,
+  })
+
+  const raw = completion.choices[0]?.message?.content?.trim() || '[]'
+  const match = raw.match(/\[[\s\S]*?\]/)
+  if (!match) return []
+
+  const parsed = JSON.parse(match[0])
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter(id => typeof id === 'string')
+}
+
+module.exports = { suggestSubtasks, filterChatMessages }

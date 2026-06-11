@@ -31,6 +31,18 @@ function SidebarItem({ icon, label, active, onClick }) {
   )
 }
 
+// ── Due-date urgency helpers ──────────────────────────────
+function isDueSoon(task) {
+  if (task.isCompleted || !task.dueDate) return false
+  const due  = new Date(task.dueDate + 'T23:59:59')
+  const diff = due - new Date()
+  return diff >= 0 && diff <= 48 * 60 * 60 * 1000
+}
+function isOverdue(task) {
+  if (task.isCompleted || !task.dueDate) return false
+  return new Date(task.dueDate + 'T23:59:59') < new Date()
+}
+
 // Returns true if a recurring task falls on the given dateStr (YYYY-MM-DD)
 function isRecurringOnDay(task, dateStr) {
   if (!task.recurrenceType || task.recurrenceType === 'none') return false
@@ -385,15 +397,19 @@ export default function CalendarView() {
 
                     {/* Task chips */}
                     {dayTasks.slice(0, MAX_CHIPS).map(task => {
-                      const pc = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.Low
+                      const pc          = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.Low
                       const isRecurring = task.recurrenceType && task.recurrenceType !== 'none'
+                      const soon        = isDueSoon(task)
+                      const overdue     = isOverdue(task)
+                      const chipBg      = overdue ? '#dc3545' : soon ? '#fd7e14' : pc.bg
+                      const chipColor   = overdue || soon ? '#fff' : pc.color
                       return (
                         <div
                           key={task.id}
                           title={task.title}
                           onClick={e => { e.stopPropagation(); navigate(`/tasks/${task.id}`) }}
                           style={{
-                            backgroundColor: pc.bg, color: pc.color,
+                            backgroundColor: chipBg, color: chipColor,
                             fontSize: '0.62rem', fontFamily: FONT, fontWeight: 'bold',
                             padding: '2px 6px', borderRadius: 4, marginBottom: 2,
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

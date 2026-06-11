@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useChat } from '../context/ChatContext'
+import { filterChatMessages } from '../services/api'
 
 const FONT = '"Courier New", Courier, monospace'
 
@@ -20,16 +21,20 @@ export default function ChatPanel() {
   const { user } = useAuth()
   const { messages, connected, onlineUsers, sendMessage, chatOpen, toggleChat } = useChat()
   const [input, setInput] = useState('')
+  const [filterQuery, setFilterQuery]   = useState('')
+  const [filteredIds, setFilteredIds]   = useState(null)   // null = no filter active
+  const [filterLoading, setFilterLoading] = useState(false)
+  const [filterError, setFilterError]   = useState('')
   const bottomRef = useRef(null)
   const location = useLocation()
   const isMobile = useIsMobile()
 
   // ── Auto-scroll to bottom on new messages ──────────────
   useEffect(() => {
-    if (chatOpen) {
+    if (chatOpen && filteredIds === null) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [messages, chatOpen])
+  }, [messages, chatOpen, filteredIds])
 
   // Hide chat on public pages (must be AFTER all hooks)
   const isPublicPage = ['/', '/register', '/forgot-password', '/welcome'].includes(location.pathname)
@@ -50,13 +55,46 @@ export default function ChatPanel() {
     }
   }
 
+  // ── AI filter ───────────────────────────────────────────
+  const handleFilter = async () => {
+    if (!filterQuery.trim()) return
+    setFilterLoading(true)
+    setFilterError('')
+    try {
+      const chatMsgs = messages.filter(m => !m.system && !m._id?.startsWith('sys-'))
+      const data = await filterChatMessages(chatMsgs, filterQuery.trim())
+      setFilteredIds(data.ids || [])
+    } catch (err) {
+      setFilterError('Filter failed. Try again.')
+    } finally {
+      setFilterLoading(false)
+    }
+  }
+
+  const handleFilterKeyDown = (e) => {
+    if (e.key === 'Enter') handleFilter()
+    if (e.key === 'Escape') clearFilter()
+  }
+
+  const clearFilter = () => {
+    setFilteredIds(null)
+    setFilterQuery('')
+    setFilterError('')
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+  }
+
+  // ── Which messages to show ──────────────────────────────
+  const visibleMessages = filteredIds === null
+    ? messages
+    : messages.filter(m => filteredIds.includes(String(m._id)))
+
   // ── Format time ─────────────────────────────────────────
   const formatTime = (ts) => {
     const d = new Date(ts)
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
-  const isOwn = (msg) => msg.userId === user?.UserId
+  const isOwn    = (msg) => msg.userId === user?.UserId
   const isSystem = (msg) => msg.system || msg._id?.startsWith('sys-')
 
   // ── Collapsed: show only the toggle tab ────────────────
@@ -108,14 +146,62 @@ export default function ChatPanel() {
           </span>
         </div>
 
+        {/* AI Filter bar */}
+        <div style={styles.filterBar}>
+          <input
+            style={styles.filterInput}
+            type="text"
+            placeholder="🔍 AI filter messages…"
+            value={filterQuery}
+            onChange={e => setFilterQuery(e.target.value)}
+            onKeyDown={handleFilterKeyDown}
+          />
+          {filteredIds === null ? (
+            <button
+              style={{
+                ...styles.filterBtn,
+                opacity: filterQuery.trim() && !filterLoading ? 1 : 0.5,
+              }}
+              onClick={handleFilter}
+              disabled={!filterQuery.trim() || filterLoading}
+              title="Filter with AI"
+            >
+              {filterLoading ? '…' : '✦'}
+            </button>
+          ) : (
+            <button
+              style={{ ...styles.filterBtn, backgroundColor: '#e05252' }}
+              onClick={clearFilter}
+              title="Clear filter"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Filter status line */}
+        {filteredIds !== null && (
+          <div style={styles.filterStatus}>
+            {filteredIds.length === 0
+              ? 'No matching messages found.'
+              : `Showing ${filteredIds.length} of ${messages.filter(m => !isSystem(m)).length} messages`}
+          </div>
+        )}
+        {filterError && (
+          <div style={{ ...styles.filterStatus, color: '#f87171' }}>{filterError}</div>
+        )}
+
         {/* Messages */}
         <div style={styles.messagesArea}>
-          {messages.length === 0 && (
+          {visibleMessages.length === 0 && filteredIds === null && (
             <div style={styles.empty}>
               {connected ? 'No messages yet. Say hello!' : 'Connecting...'}
             </div>
           )}
-          {messages.map((msg) => {
+          {visibleMessages.length === 0 && filteredIds !== null && (
+            <div style={styles.empty}>No messages match your filter.</div>
+          )}
+          {visibleMessages.map((msg) => {
             if (isSystem(msg)) {
               return (
                 <div key={msg._id} style={styles.systemMsg}>
@@ -132,6 +218,7 @@ export default function ChatPanel() {
                   ...styles.bubble,
                   backgroundColor: isOwn(msg) ? '#2d3748' : '#f5f5d0',
                   color: isOwn(msg) ? '#e2e8f0' : '#111',
+                  ...(filteredIds !== null ? styles.bubbleHighlighted : {}),
                 }}>
                   {!isOwn(msg) && (
                     <div style={styles.sender}>{msg.userName}</div>
@@ -285,6 +372,48 @@ const styles = {
     marginLeft: 4,
   },
 
+  // ── AI Filter bar ─────────────────────────────────────
+  filterBar: {
+    display: 'flex',
+    gap: 6,
+    padding: '8px 10px',
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
+    flexShrink: 0,
+  },
+  filterInput: {
+    flex: 1,
+    padding: '6px 10px',
+    borderRadius: 14,
+    border: '1px solid rgba(255,255,255,0.15)',
+    backgroundColor: '#1e293b',
+    color: '#e2e8f0',
+    fontFamily: FONT,
+    fontSize: '0.72rem',
+    outline: 'none',
+  },
+  filterBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: '50%',
+    border: 'none',
+    backgroundColor: '#8a9e6e',
+    color: '#111',
+    fontWeight: 'bold',
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  filterStatus: {
+    fontSize: '0.65rem',
+    color: '#94a3b8',
+    padding: '4px 12px',
+    fontStyle: 'italic',
+    flexShrink: 0,
+  },
+
   // ── Messages ──────────────────────────────────────────
   messagesArea: {
     flex: 1,
@@ -318,6 +447,9 @@ const styles = {
     fontSize: '0.8rem',
     lineHeight: 1.4,
     wordBreak: 'break-word',
+  },
+  bubbleHighlighted: {
+    boxShadow: '0 0 0 2px rgba(138,158,110,0.5)',
   },
   sender: {
     fontSize: '0.65rem',

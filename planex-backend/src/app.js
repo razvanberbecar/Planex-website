@@ -8,6 +8,7 @@ const statsRoutes   = require('./routes/statistics')
 const subtaskRoutes = require('./routes/subtasks')
 const authRoutes    = require('./routes/auth')
 const adminRoutes   = require('./routes/admin')
+const aiRoutes      = require('./routes/ai')
 const { authenticate, updateLastActivity } = require('./middleware/auth')
 
 const app = express()
@@ -33,6 +34,9 @@ app.use('/api/statistics',            statsRoutes)
 
 // ── ADMIN ENDPOINTS (auth + admin role checked inside admin routes) ──
 app.use('/api/admin', adminRoutes)
+
+// ── AI ENDPOINTS (auth required) ─────────────────────────────
+app.use('/api/ai', aiRoutes)
 
 // ── GRAPHQL (requires authentication) ────────────────────────
 app.use('/graphql', authenticate, updateLastActivity, createHandler({ schema, rootValue: root }))

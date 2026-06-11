@@ -14,6 +14,18 @@ const priorityColors = {
   Low:    { bg: '#d1e7dd', color: '#0a3622', border: '#badbcc' },
 }
 
+// ── Due-date urgency helpers ──────────────────────────────
+function isDueSoon(task) {
+  if (task.isCompleted || !task.dueDate) return false
+  const due  = new Date(task.dueDate + 'T23:59:59')
+  const diff = due - new Date()
+  return diff >= 0 && diff <= 48 * 60 * 60 * 1000
+}
+function isOverdue(task) {
+  if (task.isCompleted || !task.dueDate) return false
+  return new Date(task.dueDate + 'T23:59:59') < new Date()
+}
+
 function PriorityBadge({ priority }) {
   const p = priority || 'Low'
   const colors = priorityColors[p] || priorityColors['Low']
@@ -218,17 +230,29 @@ export default function MasterView() {
                   {search ? `No tasks matching "${search}".` : 'No tasks found.'}
                 </td></tr>
               ) : (
-                sortedTasks.map(task => (
-                  <tr key={task.id} onClick={() => navigate('/tasks/' + task.id)} style={{ cursor: 'pointer', transition: 'background-color 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={tdStyle}>{task.title}</td>
-                    <td style={tdStyle}>{task.dueDate}</td>
-                    <td style={tdStyle}><PriorityBadge priority={task.priority} /></td>
-                    <td style={tdStyle}>{task.collaborators && task.collaborators.length > 0 ? 'Yes' : 'No'}</td>
-                  </tr>
-                ))
+                sortedTasks.map(task => {
+                  const soon    = isDueSoon(task)
+                  const overdue = isOverdue(task)
+                  const rowBg   = overdue ? 'rgba(220,53,69,0.08)' : soon ? 'rgba(255,140,0,0.08)' : 'transparent'
+                  return (
+                    <tr key={task.id} onClick={() => navigate('/tasks/' + task.id)}
+                      style={{ cursor: 'pointer', transition: 'background-color 0.15s', backgroundColor: rowBg }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = overdue ? 'rgba(220,53,69,0.15)' : soon ? 'rgba(255,140,0,0.15)' : 'rgba(0,0,0,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = rowBg}
+                    >
+                      <td style={tdStyle}>{task.title}</td>
+                      <td style={tdStyle}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {task.dueDate}
+                          {overdue && <span style={{ fontSize: '0.65rem', fontWeight: 'bold', padding: '1px 7px', borderRadius: 20, backgroundColor: '#dc3545', color: '#fff' }}>Overdue</span>}
+                          {soon    && <span style={{ fontSize: '0.65rem', fontWeight: 'bold', padding: '1px 7px', borderRadius: 20, backgroundColor: '#fd7e14', color: '#fff' }}>Due soon</span>}
+                        </span>
+                      </td>
+                      <td style={tdStyle}><PriorityBadge priority={task.priority} /></td>
+                      <td style={tdStyle}>{task.collaborators && task.collaborators.length > 0 ? 'Yes' : 'No'}</td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
