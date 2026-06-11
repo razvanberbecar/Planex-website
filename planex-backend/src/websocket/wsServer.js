@@ -1,6 +1,7 @@
 const { WebSocketServer } = require('ws')
 const { getDb } = require('../database/mongodb')
 const { checkToxicity } = require('../services/aiService')
+const { flagUser } = require('../services/flagService')
 
 let wss = null
 
@@ -145,6 +146,8 @@ function attachWebSocket(httpServer) {
                 type: 'MESSAGE_REJECTED',
                 payload: { reason: 'Your message was blocked for containing inappropriate content.' },
               }))
+              // Flag the user for admin review (fire-and-forget)
+              flagUser(clientInfo.userId, 'toxic_chat', text.trim().slice(0, 300)).catch(() => {})
               return
             }
 

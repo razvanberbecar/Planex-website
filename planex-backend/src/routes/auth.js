@@ -16,6 +16,7 @@ const { User, Role, Session } = require('../database/models');
 const logService     = require('../services/logService');
 const auth           = require('../middleware/auth');
 const { sendVerificationCode, sendPasswordResetEmail } = require('../services/emailService');
+const { flagUser } = require('../services/flagService');
 
 const router = Router();
 
@@ -185,6 +186,7 @@ router.post('/login', authLimiter, async (req, res) => {
         userAgent: req.headers['user-agent'],
       }).catch(() => {});
       if (locked) {
+        flagUser(user.UserId, 'brute_force', `IP: ${req.ip}`).catch(() => {})
         return res.status(423).json({
           error: 'Account locked due to too many failed attempts. Try again in 15 minutes.',
           code: 'ACCOUNT_LOCKED',
@@ -985,6 +987,7 @@ router.post('/three-way/init', threeWayLimiter, async (req, res) => {
         userAgent: req.headers['user-agent'],
       }).catch(() => {});
       if (locked) {
+        flagUser(user.UserId, 'brute_force', `IP: ${req.ip}`).catch(() => {})
         return res.status(423).json({
           error: 'Account locked due to too many failed attempts. Try again in 15 minutes.',
           code: 'ACCOUNT_LOCKED',

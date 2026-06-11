@@ -27,6 +27,7 @@ const RolePermissionModel   = require('./RolePermission');
 const UserModel             = require('./User');
 const SessionModel          = require('./Session');
 const ActivityLogModel      = require('./ActivityLog');
+const UserFlagModel         = require('./UserFlag');
 
 // ── Instantiate Models ─────────────────────────────────────
 const Task               = TaskModel(sequelize, Sequelize.DataTypes);
@@ -38,13 +39,14 @@ const RolePermission     = RolePermissionModel(sequelize, Sequelize.DataTypes);
 const User               = UserModel(sequelize, Sequelize.DataTypes);
 const Session            = SessionModel(sequelize, Sequelize.DataTypes);
 const ActivityLog        = ActivityLogModel(sequelize, Sequelize.DataTypes);
+const UserFlag           = UserFlagModel(sequelize, Sequelize.DataTypes);
 
 // ── Run associate() for each model ─────────────────────────
 const models = {
   Task, Subtask, TaskCollaborator,
   Role, Permission, RolePermission,
   User, Session,
-  ActivityLog,
+  ActivityLog, UserFlag,
 };
 
 Object.values(models).forEach(model => {
@@ -75,4 +77,5 @@ module.exports = {
   User,
   Session,
   ActivityLog,
+  UserFlag,
 };

@@ -2,6 +2,7 @@ const { Router }     = require('express');
 const { User, Role } = require('../database/models');
 const logService     = require('../services/logService');
 const { authenticate, updateLastActivity, requireAdmin } = require('../middleware/auth');
+const { getAllFlags, clearFlags } = require('../services/flagService');
 
 const router = Router();
 
@@ -71,5 +72,27 @@ router.patch('/users/:id/role', async (req, res, next) => {
     next(err);
   }
 });
+
+// GET /api/admin/flags — all flagged users with their flags
+router.get('/flags', async (req, res, next) => {
+  try {
+    const flags = await getAllFlags()
+    res.json(flags)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// DELETE /api/admin/flags/:userId — clear all flags for a user
+router.delete('/flags/:userId', async (req, res, next) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!userId) return res.status(400).json({ error: 'Invalid userId.' })
+    await clearFlags(userId)
+    res.json({ message: 'Flags cleared.' })
+  } catch (err) {
+    next(err)
+  }
+})
 
 module.exports = router;
