@@ -125,6 +125,39 @@ export default function CalendarView() {
     ? tasks.filter(t => t.dueDate === selectedDateStr || isRecurringOnDay(t, selectedDateStr))
     : []
 
+  // ── CSV Export ────────────────────────────────────────────
+  const exportToCSV = () => {
+    const esc = (val) => `"${String(val || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+    const header = ['Date', 'Title', 'Description', 'Priority', 'Status', 'Completed', 'Recurrence']
+    const rows   = [header.join(',')]
+
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds       = dateStr(viewYear, viewMonth, d)
+      const dayTasks = tasks.filter(t => t.dueDate === ds || isRecurringOnDay(t, ds))
+      dayTasks.forEach(t => {
+        rows.push([
+          esc(ds),
+          esc(t.title),
+          esc(t.description),
+          esc(t.priority),
+          esc(t.status),
+          esc(t.isCompleted ? 'Yes' : 'No'),
+          esc(t.recurrenceType !== 'none' ? t.recurrenceType : ''),
+        ].join(','))
+      })
+    }
+
+    const csv  = rows.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `planex-${MONTH_NAMES[viewMonth]}-${viewYear}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const prevMonth = () => {
     setSelectedDay(null)
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
@@ -270,6 +303,14 @@ export default function CalendarView() {
               fontFamily: FONT, fontSize: '0.8rem', padding: '6px 18px', borderRadius: 20,
               border: '1px solid #2d3748', backgroundColor: 'transparent', cursor: 'pointer', color: '#111',
             }}>Today</button>
+
+            <button onClick={exportToCSV} style={{
+              fontFamily: FONT, fontSize: '0.8rem', padding: '6px 18px', borderRadius: 20,
+              border: '1px solid #2d3748', backgroundColor: '#2d3748', cursor: 'pointer', color: '#e2e8f0',
+              marginLeft: 'auto',
+            }}>
+              ↓ Export CSV
+            </button>
           </div>
 
           {/* Grid */}

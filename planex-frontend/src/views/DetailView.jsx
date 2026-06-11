@@ -205,8 +205,21 @@ export default function DetailView() {
   }, [id])
 
   const handleChange = (e) => {
-    setFields(prev => ({ ...prev, [e.target.name]: e.target.value }))
-    setErrors(prev => ({ ...prev, [e.target.name]: undefined }))
+    const { name, value } = e.target
+    setFields(prev => {
+      const next = { ...prev, [name]: value }
+      // Keep dueDate in sync with recurrenceStart when recurring
+      if (name === 'recurrenceStart' && prev.recurrenceType !== 'none') {
+        next.dueDate = value
+      }
+      // When switching to a recurrence type, copy recurrenceStart → dueDate
+      if (name === 'recurrenceType' && value !== 'none' && prev.recurrenceStart) {
+        next.dueDate = prev.recurrenceStart
+      }
+      // When clearing recurrence, leave dueDate as-is so user can set it manually
+      return next
+    })
+    setErrors(prev => ({ ...prev, [name]: undefined }))
   }
 
   const handleSubmit = async () => {
@@ -307,10 +320,12 @@ export default function DetailView() {
               <div>
                 <textarea style={{ ...inputStyle, borderRadius: 18, resize: 'vertical', minHeight: 160 }} name="description" placeholder="Description" value={fields.description} onChange={handleChange} />
               </div>
-              <div>
-                <input style={inputStyle} name="dueDate" placeholder="Due Date (YYYY-MM-DD)" value={fields.dueDate} onChange={handleChange} />
-                {errors.dueDate && <p style={errorStyle}>{errors.dueDate}</p>}
-              </div>
+              {fields.recurrenceType === 'none' && (
+                <div>
+                  <input style={inputStyle} name="dueDate" placeholder="Due Date (YYYY-MM-DD)" value={fields.dueDate} onChange={handleChange} />
+                  {errors.dueDate && <p style={errorStyle}>{errors.dueDate}</p>}
+                </div>
+              )}
               <div>
                 <CollaboratorInput
                   selected={collaborators}
