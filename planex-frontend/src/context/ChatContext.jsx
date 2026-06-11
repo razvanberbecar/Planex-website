@@ -8,10 +8,13 @@ import { useAuth } from './AuthContext'
 
 const ChatContext = createContext(null)
 
-// Use the Vite proxy path (/ws) for WebSocket — same host:port as
-// the page, and protocol auto-detects ws:/wss: to avoid mixed-content.
+// In dev, Vite proxies /ws to localhost:3001 so window.location.host works.
+// In production the frontend and backend are on different Render subdomains,
+// so we derive the WS host from VITE_API_URL (same env var the API uses).
 const WS_PROTO = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-const WS_URL   = `${WS_PROTO}//${window.location.host}/ws`
+const _apiUrl  = import.meta.env.VITE_API_URL   // e.g. "https://planex-backend.onrender.com/api"
+const _wsHost  = _apiUrl ? new URL(_apiUrl).host : window.location.host
+const WS_URL   = `${WS_PROTO}//${_wsHost}/ws`
 
 export function ChatProvider({ children }) {
   const { user } = useAuth()
