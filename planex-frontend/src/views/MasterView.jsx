@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetchTasks, updateTask, deleteTask } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { saveFilterPreference, loadFilterPreference } from '../utils/cookies'
+import SpinWheelModal from '../components/SpinWheelModal'
 
 const FONT = '"Courier New", Courier, monospace'
 const LIMIT = 5
@@ -72,6 +73,10 @@ export default function MasterView() {
   const [selected, setSelected]       = useState(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
   const [bulkPriority, setBulkPriority] = useState('High')
+
+  // ── Spin the Wheel ────────────────────────────────────
+  const [showSpin, setShowSpin]       = useState(false)
+  const [spinTasks, setSpinTasks]     = useState([])
 
   // ── FETCH CURRENT PAGE ─────────────────────────────────
   const loadPage = useCallback(async (pageNum) => {
@@ -182,6 +187,18 @@ export default function MasterView() {
     setBulkLoading(false)
   }
 
+  // ── Spin the Wheel handler ─────────────────────────────
+  const handleOpenSpin = async () => {
+    if (!user?.UserId) return
+    try {
+      const data = await fetchTasks({ page: 1, limit: 100, filter: 'active', userId: user.UserId, userName: user.Name, isAdmin })
+      setSpinTasks(data.data || [])
+    } catch {
+      setSpinTasks([])
+    }
+    setShowSpin(true)
+  }
+
   const filterLabel = { active: 'Active Tasks', completed: 'Completed Tasks', collaborative: 'Collaborative Tasks', all: 'All Tasks' }
   const thStyle = { fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#333', textAlign: 'left', padding: '6px 14px', textTransform: 'uppercase', letterSpacing: 1, borderBottom: '1px solid rgba(0,0,0,0.2)' }
   const tdStyle = { fontFamily: FONT, fontSize: '0.9rem', color: '#111', padding: '12px 14px', borderBottom: '1px solid rgba(0,0,0,0.12)' }
@@ -245,6 +262,9 @@ export default function MasterView() {
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={handleOpenSpin} title="Spin the Wheel — pick a random task" style={{ fontFamily: FONT, fontSize: '0.8rem', fontWeight: 'bold', padding: '8px 14px', borderRadius: 30, cursor: 'pointer', border: '1px solid #333', backgroundColor: '#3a4558', color: '#ddd', transition: 'all 0.2s' }}>
+              Spin the Wheel
+            </button>
             <button onClick={cycleSortOrder} style={{ fontFamily: FONT, fontSize: '0.8rem', fontWeight: 'bold', padding: '8px 14px', borderRadius: 30, cursor: 'pointer', border: '1px solid #333', backgroundColor: sortOrder !== 'none' ? '#3a4558' : 'transparent', color: sortOrder !== 'none' ? '#ddd' : '#333', transition: 'all 0.2s' }}>
               {sortLabel[sortOrder]}
             </button>
@@ -404,6 +424,10 @@ export default function MasterView() {
             ✕
           </button>
         </div>
+      )}
+
+      {showSpin && (
+        <SpinWheelModal tasks={spinTasks} onClose={() => setShowSpin(false)} />
       )}
 
     </div>
