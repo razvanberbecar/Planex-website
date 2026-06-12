@@ -257,6 +257,19 @@ router.post('/', taskBodyRules, handleValidation, requirePermission('tasks:creat
 router.put('/:id', idParamRule, taskUpdateRules, handleValidation, requirePermission('tasks:update'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
+
+    // Block marking as done if any dependencies are unfinished
+    if (req.body.isCompleted === true) {
+      const existing = await taskRepo.findById(id)
+      if (existing && existing.isBlocked) {
+        const unfinished = (existing.blockedBy || []).filter(b => !b.isCompleted)
+        return res.status(409).json({
+          error: `This task is blocked by ${unfinished.length} unfinished task(s): ${unfinished.map(b => `"${b.title}"`).join(', ')}.`,
+          code: 'TASK_BLOCKED',
+        })
+      }
+    }
+
     const task = await taskRepo.update(id, req.body)
     if (!task) return res.status(404).json({ error: 'Task not found.' })
     task.subtasks = await subRepo.getAllForTask(id)
@@ -324,6 +337,18 @@ router.delete('/:id', idParamRule, handleValidation, async (req, res, next) => {
 router.patch('/:id/toggle', idParamRule, handleValidation, requirePermission('tasks:update'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
+    const existing = await taskRepo.findById(id)
+    if (!existing) return res.status(404).json({ error: 'Task not found.' })
+
+    // Block marking as done if any dependencies are unfinished
+    if (!existing.isCompleted && existing.isBlocked) {
+      const unfinished = (existing.blockedBy || []).filter(b => !b.isCompleted)
+      return res.status(409).json({
+        error: `This task is blocked by ${unfinished.length} unfinished task(s): ${unfinished.map(b => `"${b.title}"`).join(', ')}.`,
+        code: 'TASK_BLOCKED',
+      })
+    }
+
     const task = await taskRepo.toggleCompletion(id)
     if (!task) return res.status(404).json({ error: 'Task not found.' })
     task.subtasks = await subRepo.getAllForTask(id)
@@ -359,8 +384,8 @@ router.patch('/:id/status', idParamRule, handleValidation, requirePermission('ta
     const existing = await taskRepo.findById(id)
     if (!existing) return res.status(404).json({ error: 'Task not found.' })
 
-    // Block moving to in_progress if any dependencies are unfinished
-    if (status === 'in_progress' && existing.isBlocked) {
+    // Block moving to in_progress or done if any dependencies are unfinished
+    if (['in_progress', 'done'].includes(status) && existing.isBlocked) {
       const unfinished = (existing.blockedBy || []).filter(b => !b.isCompleted)
       return res.status(409).json({
         error: `This task is blocked by ${unfinished.length} unfinished task(s): ${unfinished.map(b => `"${b.title}"`).join(', ')}.`,

@@ -17,6 +17,15 @@ const PRIORITY_COLORS = {
   Low:    { bg: '#d1e7dd', color: '#0a3622', border: '#badbcc' },
 }
 
+function LockIcon({ size = 12, color = '#7c1d24' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: 'inline-block', verticalAlign: 'middle' }}>
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  )
+}
+
 function isOverdue(task) {
   if (task.isCompleted || !task.dueDate) return false
   return new Date(task.dueDate + 'T23:59:59') < new Date()
@@ -316,8 +325,8 @@ export default function KanbanView() {
                         onMouseEnter={e => { if (draggedId !== task.id) e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)' }}
                         onMouseLeave={e => { e.currentTarget.style.boxShadow = draggedId === task.id ? 'none' : '0 2px 8px rgba(0,0,0,0.12)' }}
                       >
-                        <div style={{ fontFamily: FONT, fontSize: '0.85rem', fontWeight: 'bold', color: '#111', marginBottom: 8, lineHeight: 1.3 }}>
-                          {task.isBlocked && <span title="Blocked by incomplete dependencies" style={{ marginRight: 5 }}>🔒</span>}
+                        <div style={{ fontFamily: FONT, fontSize: '0.85rem', fontWeight: 'bold', color: '#111', marginBottom: 8, lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {task.isBlocked && <LockIcon />}
                           {task.title}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>

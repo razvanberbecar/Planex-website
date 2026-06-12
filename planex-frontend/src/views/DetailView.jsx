@@ -157,6 +157,23 @@ function CollaboratorInput({ selected, onAdd, onRemove }) {
   )
 }
 
+function LockIcon({ size = 13, color = '#7c1d24' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  )
+}
+
+function CheckIcon({ size = 13, color = '#0a3622' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  )
+}
+
 // ── Dependency panel (view mode) ─────────────────────────
 function DependencyPanel({ taskId, blockedBy, onAdd, onRemove, navigate }) {
   const [adding, setAdding] = useState(false)
@@ -181,8 +198,8 @@ function DependencyPanel({ taskId, blockedBy, onAdd, onRemove, navigate }) {
 
       {blockedBy.map(b => (
         <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-          <span style={{ fontSize: '0.8rem', cursor: 'pointer' }} onClick={() => navigate(`/tasks/${b.id}`)}>
-            {b.isCompleted ? '✓' : '🔒'}
+          <span style={{ cursor: 'pointer', display: 'flex' }} onClick={() => navigate(`/tasks/${b.id}`)}>
+            {b.isCompleted ? <CheckIcon /> : <LockIcon />}
           </span>
           <span onClick={() => navigate(`/tasks/${b.id}`)} style={{ fontFamily: FONT, fontSize: '0.85rem', color: b.isCompleted ? '#0a3622' : '#7c1d24', textDecoration: 'underline', flex: 1, cursor: 'pointer' }}>{b.title}</span>
           <span style={{ fontFamily: FONT, fontSize: '0.7rem', color: '#555', backgroundColor: STATUS_COLORS[b.status] || '#e9e9e9', padding: '2px 6px', borderRadius: 10 }}>
@@ -268,7 +285,7 @@ function TaskDependencyInput({ excludeId, selected, onAdd, onRemove }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
           {selected.map(t => (
             <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: t.isCompleted ? '#d1e7dd' : '#f8d7da', color: t.isCompleted ? '#0a3622' : '#7c1d24', padding: '4px 12px', borderRadius: 20, fontSize: '0.8rem', fontFamily: FONT }}>
-              {!t.isCompleted && '🔒 '}{t.title}
+              {!t.isCompleted && <LockIcon size={11} color="#7c1d24" />}{t.title}
               <span onClick={() => onRemove(t.id)} style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', opacity: 0.7 }}>×</span>
             </span>
           ))}
@@ -621,7 +638,8 @@ export default function DetailView() {
             {/* Blocked warning banner */}
             {blockedBy.some(b => !b.isCompleted) && (
               <div style={{ fontFamily: FONT, fontSize: '0.9rem', backgroundColor: '#f8d7da', color: '#7c1d24', padding: '10px 18px', borderRadius: 10, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                🔒 This task is blocked and cannot move to In Progress until all dependencies are completed.
+                <LockIcon size={15} color="#7c1d24" />
+                This task is blocked and cannot be completed until all dependencies are done.
               </div>
             )}
 

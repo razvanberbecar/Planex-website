@@ -26,6 +26,15 @@ function isOverdue(task) {
   return new Date(task.dueDate + 'T23:59:59') < new Date()
 }
 
+function LockIcon({ size = 13, color = '#7c1d24' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  )
+}
+
 function PriorityBadge({ priority, escalated }) {
   const p = escalated ? 'High' : (priority || 'Low')
   const colors = priorityColors[p] || priorityColors['Low']
@@ -142,11 +151,13 @@ export default function MasterView() {
   // ── Bulk actions ───────────────────────────────────────
   const handleBulkComplete = async () => {
     setBulkLoading(true)
-    try {
-      await Promise.all([...selected].map(id => updateTask(id, { isCompleted: true })))
-      setSelected(new Set())
-      loadPage(page)
-    } catch (err) { console.error(err) }
+    const results = await Promise.allSettled([...selected].map(id => updateTask(id, { isCompleted: true })))
+    const blocked = results.filter(r => r.status === 'rejected' && r.reason?.message?.includes('blocked'))
+    if (blocked.length > 0) {
+      alert(`${blocked.length} task(s) could not be completed because they are blocked by unfinished dependencies.`)
+    }
+    setSelected(new Set())
+    loadPage(page)
     setBulkLoading(false)
   }
 
@@ -251,12 +262,12 @@ export default function MasterView() {
             <thead>
               <tr>
                 {/* Select-all checkbox */}
-                <th style={{ ...thStyle, width: 36, padding: '6px 10px' }}>
+                <th style={{ ...thStyle, width: 36, padding: '6px 10px' }} onClick={toggleAll}>
                   <input
                     type="checkbox"
                     checked={allSelected}
-                    onChange={toggleAll}
-                    style={{ cursor: 'pointer', width: 16, height: 16 }}
+                    readOnly
+                    style={{ cursor: 'pointer', width: 16, height: 16, pointerEvents: 'none' }}
                   />
                 </th>
                 <th style={thStyle}>Task</th>
@@ -288,18 +299,19 @@ export default function MasterView() {
                       onMouseLeave={e => { e.currentTarget.style.backgroundColor = rowBg }}
                     >
                       {/* Per-row checkbox */}
-                      <td style={{ ...tdStyle, width: 36, padding: '12px 10px' }} onClick={e => toggleOne(e, task.id)}>
+                      <td style={{ ...tdStyle, width: 36, padding: '12px 10px' }} onClick={e => { e.stopPropagation(); setSelected(prev => { const next = new Set(prev); next.has(task.id) ? next.delete(task.id) : next.add(task.id); return next }) }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => {}}
-                          onClick={e => e.stopPropagation()}
-                          style={{ cursor: 'pointer', width: 16, height: 16 }}
+                          readOnly
+                          style={{ cursor: 'pointer', width: 16, height: 16, pointerEvents: 'none' }}
                         />
                       </td>
                       <td style={tdStyle}>
-                        {task.isBlocked && <span title="Blocked by incomplete dependencies" style={{ marginRight: 5 }}>🔒</span>}
-                        {task.title}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {task.isBlocked && <LockIcon />}
+                          {task.title}
+                        </span>
                       </td>
                       <td style={tdStyle}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
