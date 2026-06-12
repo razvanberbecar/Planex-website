@@ -17,15 +17,21 @@ const PRIORITY_COLORS = {
   Low:    { bg: '#d1e7dd', color: '#0a3622', border: '#badbcc' },
 }
 
-function PriorityBadge({ priority }) {
-  const c = PRIORITY_COLORS[priority] || PRIORITY_COLORS.Low
+function isOverdue(task) {
+  if (task.isCompleted || !task.dueDate) return false
+  return new Date(task.dueDate + 'T23:59:59') < new Date()
+}
+
+function PriorityBadge({ priority, escalated }) {
+  const p = escalated ? 'High' : (priority || 'Low')
+  const c = PRIORITY_COLORS[p] || PRIORITY_COLORS.Low
   return (
     <span style={{
       fontFamily: FONT, fontSize: '0.65rem', fontWeight: 'bold',
       padding: '2px 8px', borderRadius: 20,
       backgroundColor: c.bg, color: c.color, border: `1px solid ${c.border}`,
     }}>
-      {priority}
+      {p}{escalated && priority !== 'High' ? ' ↑' : ''}
     </span>
   )
 }
@@ -205,6 +211,7 @@ export default function KanbanView() {
           {isAdmin && (
             <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>} label="Admin Panel" onClick={() => navigate('/admin')} />
           )}
+          <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>} label="Profile" onClick={() => navigate('/profile')} />
         </div>
 
         <button onClick={handleLogout} style={{
@@ -314,7 +321,7 @@ export default function KanbanView() {
                           {task.title}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                          <PriorityBadge priority={task.priority} />
+                          <PriorityBadge priority={task.priority} escalated={isOverdue(task)} />
                           <span style={{ fontFamily: FONT, fontSize: '0.65rem', color: '#666' }}>
                             {task.dueDate}
                           </span>

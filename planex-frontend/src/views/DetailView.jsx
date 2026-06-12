@@ -46,6 +46,7 @@ function Sidebar({ navigate, user, isAdmin, onLogout }) {
         {isAdmin && (
           <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>} label="Admin Panel" onClick={() => navigate('/admin')} />
         )}
+        <SidebarItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>} label="Profile" onClick={() => navigate('/profile')} />
       </div>
       <button onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', color: '#e2e8f0', fontSize: '0.9rem', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', width: '100%', borderTop: '1px solid rgba(255,255,255,0.1)', fontFamily: FONT }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -475,7 +476,8 @@ export default function DetailView() {
 
   const isForm = mode === 'add' || mode === 'edit'
   const pageTitle = mode === 'add' ? 'New Task' : mode === 'edit' ? 'Edit Task' : (task ? task.title : '')
-  const currentPriority = mode === 'view' ? (task?.priority || 'Low') : fields.priority
+  const taskOverdue = mode === 'view' && task && !task.isCompleted && task.dueDate && new Date(task.dueDate + 'T23:59:59') < new Date()
+  const currentPriority = taskOverdue ? 'High' : (mode === 'view' ? (task?.priority || 'Low') : fields.priority)
   const pColors = priorityColors[currentPriority] || priorityColors['Low']
 
   if (loading) {
@@ -598,7 +600,7 @@ export default function DetailView() {
                 {task.title}
               </h1>
               <span style={{ fontFamily: FONT, fontSize: '0.8rem', fontWeight: 'bold', padding: '4px 12px', borderRadius: 20, backgroundColor: pColors.bg, color: pColors.color, border: `1px solid ${pColors.border}` }}>
-                {currentPriority}
+                {currentPriority}{taskOverdue && task?.priority !== 'High' ? ' ↑' : ''}
               </span>
             </div>
             <p style={{ fontFamily: FONT, fontSize: '1rem', color: '#333', marginBottom: 8 }}>Due Date — {task.dueDate}</p>
