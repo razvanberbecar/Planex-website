@@ -366,6 +366,10 @@ export async function updateTaskStatus(id, status) {
   })
 }
 
+export async function toggleTask(id) {
+  return request(`/tasks/${id}/toggle`, { method: 'PATCH' })
+}
+
 export async function searchTasks(q, excludeId) {
   const params = new URLSearchParams({ q })
   if (excludeId) params.append('excludeId', excludeId)

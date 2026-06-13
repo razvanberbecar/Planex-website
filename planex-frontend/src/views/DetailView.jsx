@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { fetchTask, createTask, updateTask, deleteTask, searchUsers, searchTasks, addTaskDependency, removeTaskDependency, fetchTaskActivity } from '../services/api'
+import { fetchTask, createTask, updateTask, deleteTask, searchUsers, searchTasks, addTaskDependency, removeTaskDependency, fetchTaskActivity, toggleTask } from '../services/api'
 import { validateTask } from '../utils/validation'
 import { saveLastViewedTask } from '../utils/cookies'
 import SubtaskPanel from '../components/SubtaskPanel'
@@ -361,6 +361,7 @@ export default function DetailView() {
   const [loading, setLoading] = useState(!isNew)
   const [mode, setMode]     = useState(isNew ? 'add' : 'view')
   const [apiError, setApiError] = useState('')
+  const [recurringMsg, setRecurringMsg] = useState('')
 
   const [fields, setFields] = useState({
     title: '', description: '', dueDate: '', priority: 'Medium',
@@ -465,8 +466,15 @@ export default function DetailView() {
 
   const handleToggle = async () => {
     try {
-      const updated = await updateTask(task.id, { isCompleted: !task.isCompleted })
+      const updated = await toggleTask(task.id)
       setTask(updated)
+      if (updated.recurringAdvanced) {
+        const nextDate = updated.dueDate
+          ? new Date(updated.dueDate).toLocaleDateString()
+          : 'the next occurrence'
+        setRecurringMsg(`Done! Next occurrence set for ${nextDate}.`)
+        setTimeout(() => setRecurringMsg(''), 4000)
+      }
     } catch (err) {
       setApiError(err.message)
     }
@@ -526,6 +534,12 @@ export default function DetailView() {
       <Sidebar navigate={navigate} user={user} isAdmin={isAdmin} onLogout={async () => { await logout(); navigate('/'); }} />
       <main style={{ flex: 1, backgroundColor: '#8a9e6e', padding: '40px 50px', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', fontSize: '8rem', fontWeight: 900, color: 'rgba(0,0,0,0.08)', letterSpacing: 8, pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap' }}>Planex</div>
+
+        {recurringMsg && (
+          <div style={{ fontFamily: FONT, color: '#0a3622', backgroundColor: '#d1e7dd', padding: '10px 16px', borderRadius: 8, marginBottom: 16, position: 'relative', zIndex: 1 }}>
+            🔁 {recurringMsg}
+          </div>
+        )}
 
         {apiError && (
           <div style={{ fontFamily: FONT, color: '#7c1d24', backgroundColor: '#f8d7da', padding: '10px 16px', borderRadius: 8, marginBottom: 16, position: 'relative', zIndex: 1 }}>

@@ -222,20 +222,86 @@ async function remove(id) {
   return true;
 }
 
-/** Toggle the isCompleted flag, keeping Status in sync. */
+// ── RECURRENCE HELPERS ────────────────────────────────────────────
+
+/** Advance a date string by one recurrence interval. Returns YYYY-MM-DD. */
+function nextRecurrenceDate(currentDue, recurrenceType) {
+  const d = new Date(currentDue)
+  switch (recurrenceType) {
+    case 'daily':   d.setDate(d.getDate() + 1);   break
+    case 'weekly':  d.setDate(d.getDate() + 7);   break
+    case 'monthly': d.setMonth(d.getMonth() + 1); break
+  }
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * Handle completion of a recurring task — returns { advanced, nextDue } or null
+ * if the task should complete permanently.
+ * Mutates the DB in place; caller should re-fetch with findById.
+ */
+async function handleRecurringComplete(task) {
+  const baseDue = task.DueDate
+    ? new Date(task.DueDate).toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10)
+  const nextDue = nextRecurrenceDate(baseDue, task.RecurrenceType)
+
+  // If next occurrence is past the recurrence end, complete permanently
+  if (task.RecurrenceEnd && nextDue > new Date(task.RecurrenceEnd).toISOString().slice(0, 10)) {
+    await Task.update({ IsCompleted: true, Status: 'done' }, { where: { TaskId: task.TaskId } })
+    return null
+  }
+
+  // Reset to next occurrence
+  await Task.update(
+    { IsCompleted: false, Status: 'todo', DueDate: nextDue },
+    { where: { TaskId: task.TaskId } }
+  )
+  return { advanced: true, nextDue }
+}
+
+// ─────────────────────────────────────────────────────────────────
+
+/** Toggle the isCompleted flag, keeping Status in sync.
+ *  For recurring tasks being marked complete, advances DueDate to the
+ *  next occurrence instead of permanently completing the task. */
 async function toggleCompletion(id) {
   const task = await Task.findByPk(id);
   if (!task) return undefined;
+
+  const isRecurring = task.RecurrenceType && task.RecurrenceType !== 'none'
+  const markingDone = !task.IsCompleted
+
+  if (isRecurring && markingDone) {
+    const result = await handleRecurringComplete(task)
+    const updated = await findById(id)
+    if (result) updated.recurringAdvanced = true
+    return updated
+  }
+
+  // Non-recurring: normal toggle
   const newCompleted = !task.IsCompleted;
   const newStatus = newCompleted ? 'done' : 'todo';
   await Task.update({ IsCompleted: newCompleted, Status: newStatus }, { where: { TaskId: id } });
   return findById(id);
 }
 
-/** Update a task's kanban status (also syncs IsCompleted). */
+/** Update a task's kanban status (also syncs IsCompleted).
+ *  Dragging a recurring task to Done advances it to its next occurrence. */
 async function updateStatus(id, status) {
   const task = await Task.findByPk(id);
   if (!task) return undefined;
+
+  const isRecurring = task.RecurrenceType && task.RecurrenceType !== 'none'
+  const markingDone = status === 'done'
+
+  if (isRecurring && markingDone) {
+    const result = await handleRecurringComplete(task)
+    const updated = await findById(id)
+    if (result) updated.recurringAdvanced = true
+    return updated
+  }
+
   const isCompleted = status === 'done';
   await Task.update({ Status: status, IsCompleted: isCompleted }, { where: { TaskId: id } });
   return findById(id);
