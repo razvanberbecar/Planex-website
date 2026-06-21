@@ -4,6 +4,19 @@ import { useAuth } from '../context/AuthContext'
 
 const FONT = '"Courier New", Courier, monospace'
 
+function EyeIcon({ open }) {
+  return open ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
+
 export default function ResetPassword() {
   const { token: pathToken } = useParams()
   const [searchParams] = useSearchParams()
@@ -15,6 +28,8 @@ export default function ResetPassword() {
   const [email, setEmail] = useState(searchParams.get('email') || '')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -116,32 +131,54 @@ export default function ResetPassword() {
         <div style={styles.body}>
           <p style={styles.subtitle}>Enter your email and new password</p>
 
-          <input
-            style={styles.input}
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setError(''); setMessage('') }}
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          />
+          <div style={styles.fieldGroup}>
+            <label htmlFor="reset-email" style={styles.label}>Email Address</label>
+            <input
+              id="reset-email"
+              style={styles.input}
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(''); setMessage('') }}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+            />
+          </div>
 
-          <input
-            style={styles.input}
-            type="password"
-            placeholder="New password (min 8 characters)"
-            value={newPassword}
-            onChange={e => { setNewPassword(e.target.value); setError(''); setMessage('') }}
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          />
+          <div style={styles.fieldGroup}>
+            <label htmlFor="reset-new-pw" style={styles.label}>New Password</label>
+            <div style={styles.passwordWrapper}>
+              <input
+                id="reset-new-pw"
+                style={{ ...styles.input, paddingRight: 48 }}
+                type={showNew ? 'text' : 'password'}
+                placeholder="Min 8 characters"
+                value={newPassword}
+                onChange={e => { setNewPassword(e.target.value); setError(''); setMessage('') }}
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              />
+              <button type="button" aria-label={showNew ? 'Hide password' : 'Show password'} onClick={() => setShowNew(v => !v)} style={styles.eyeBtn}>
+                <EyeIcon open={showNew} />
+              </button>
+            </div>
+          </div>
 
-          <input
-            style={styles.input}
-            type="password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={e => { setConfirmPassword(e.target.value); setError(''); setMessage('') }}
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          />
+          <div style={styles.fieldGroup}>
+            <label htmlFor="reset-confirm-pw" style={styles.label}>Confirm Password</label>
+            <div style={styles.passwordWrapper}>
+              <input
+                id="reset-confirm-pw"
+                style={{ ...styles.input, paddingRight: 48 }}
+                type={showConfirm ? 'text' : 'password'}
+                placeholder="Repeat new password"
+                value={confirmPassword}
+                onChange={e => { setConfirmPassword(e.target.value); setError(''); setMessage('') }}
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              />
+              <button type="button" aria-label={showConfirm ? 'Hide password' : 'Show password'} onClick={() => setShowConfirm(v => !v)} style={styles.eyeBtn}>
+                <EyeIcon open={showConfirm} />
+              </button>
+            </div>
+          </div>
 
           {error && <p style={styles.error}>{error}</p>}
           {message && <p style={styles.success}>{message}</p>}
@@ -211,6 +248,38 @@ const styles = {
     margin: '0 0 8px 0',
     letterSpacing: '0.05em',
     textAlign: 'center',
+  },
+  fieldGroup: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  label: {
+    fontFamily: FONT,
+    fontSize: '0.72rem',
+    fontWeight: 'bold',
+    color: '#333',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    marginLeft: 14,
+  },
+  passwordWrapper: {
+    position: 'relative',
+    width: '100%',
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#666',
+    display: 'flex',
+    alignItems: 'center',
+    padding: 4,
   },
   input: {
     width: '100%',

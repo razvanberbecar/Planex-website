@@ -107,9 +107,9 @@ export default function Statistics() {
 
       <aside style={{ width: 210, minWidth: 210, backgroundColor: '#2d3748', color: '#e2e8f0', display: 'flex', flexDirection: 'column', padding: '20px 0', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0 }}>
+          <button onClick={() => navigate('/profile')} aria-label="View profile" style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0, border: 'none', color: '#e2e8f0', cursor: 'pointer' }}>
             {user?.Name ? user.Name.charAt(0).toUpperCase() : '?'}
-          </div>
+          </button>
           <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{user?.Name || 'Unknown'}</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', marginTop: 10, flex: 1 }}>
@@ -148,7 +148,10 @@ export default function Statistics() {
         </div>
 
         {loading ? (
-          <p style={{ fontFamily: FONT, color: '#111' }}>Loading statistics...</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: 1 }}>
+            <div style={{ width: 20, height: 20, border: '2px solid #ccc', borderTopColor: '#333', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} aria-label="Loading" />
+            <span style={{ fontFamily: FONT, color: '#333', fontSize: '0.9rem' }}>Loading statistics...</span>
+          </div>
         ) : !stats ? (
           <p style={{ fontFamily: FONT, color: '#7c1d24' }}>Could not load statistics. Is the backend running?</p>
         ) : (

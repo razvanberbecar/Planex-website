@@ -189,13 +189,14 @@ export default function KanbanView() {
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)',
         }}>
-          <div style={{
+          <button onClick={() => navigate('/profile')} aria-label="View profile" style={{
             width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0,
+            border: 'none', color: '#e2e8f0', cursor: 'pointer',
           }}>
             {user?.Name ? user.Name.charAt(0).toUpperCase() : '?'}
-          </div>
+          </button>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.Name || 'Unknown'}

@@ -146,16 +146,21 @@ export default function SubtaskPanel({ taskId }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {subtasks.map(sub => (
             <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
+              <button
                 onClick={() => handleToggle(sub)}
-                style={{ width: 18, height: 18, border: '2px solid #555', borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', flexShrink: 0, backgroundColor: sub.isCompleted ? '#3a4558' : 'transparent', color: '#fff', transition: 'background-color 0.2s' }}
+                aria-label={sub.isCompleted ? 'Mark incomplete' : 'Mark complete'}
+                style={{ width: 18, height: 18, border: '2px solid #555', borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: sub.isCompleted ? '#3a4558' : 'transparent', padding: 0, transition: 'background-color 0.2s' }}
               >
-                {sub.isCompleted ? '✓' : ''}
-              </div>
+                {sub.isCompleted && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </button>
               <span style={{ fontFamily: FONT, fontSize: '0.88rem', color: '#222', flex: 1, textDecoration: sub.isCompleted ? 'line-through' : 'none', opacity: sub.isCompleted ? 0.6 : 1, transition: 'opacity 0.2s' }}>
                 {sub.title}
               </span>
-              <span onClick={() => handleDelete(sub.id)} style={{ cursor: 'pointer', color: '#aaa', fontSize: '0.75rem' }}>✕</span>
+              <button onClick={() => handleDelete(sub.id)} aria-label={`Delete subtask: ${sub.title}`} style={{ cursor: 'pointer', color: '#aaa', background: 'none', border: 'none', padding: '2px', display: 'flex', alignItems: 'center' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
           ))}
         </div>
@@ -216,10 +221,13 @@ export default function SubtaskPanel({ taskId }) {
             <span style={{ fontFamily: FONT, fontSize: '0.7rem', fontWeight: 'bold', color: '#e2e8f0', letterSpacing: 1, textTransform: 'uppercase' }}>
               AI Suggestions
             </span>
-            <span
+            <button
               onClick={() => setSuggestions(null)}
-              style={{ color: '#e2e8f0', cursor: 'pointer', fontSize: '0.75rem', opacity: 0.7 }}
-            >✕</span>
+              aria-label="Dismiss AI suggestions"
+              style={{ color: '#e2e8f0', background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', opacity: 0.7 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
           {/* Suggestion rows */}

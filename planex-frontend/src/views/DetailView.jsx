@@ -27,9 +27,9 @@ function Sidebar({ navigate, user, isAdmin, onLogout }) {
   return (
     <aside style={{ width: 210, minWidth: 210, backgroundColor: '#2d3748', color: '#e2e8f0', display: 'flex', flexDirection: 'column', padding: '20px 0', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0 }}>
+        <button onClick={() => navigate('/profile')} aria-label="View profile" style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0, border: 'none', color: '#e2e8f0', cursor: 'pointer' }}>
           {user?.Name ? user.Name.charAt(0).toUpperCase() : '?'}
-        </div>
+        </button>
         <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{user?.Name || 'Unknown'}</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', marginTop: 10, flex: 1 }}>
@@ -143,12 +143,13 @@ function CollaboratorInput({ selected, onAdd, onRemove }) {
               borderRadius: 20, fontSize: '0.8rem', fontFamily: FONT,
             }}>
               {user.Name}
-              <span
+              <button
                 onClick={() => onRemove(user.UserId)}
-                style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', opacity: 0.7 }}
+                aria-label={`Remove ${user.Name}`}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ddd', opacity: 0.7, padding: 0, display: 'flex', alignItems: 'center' }}
               >
-                ×
-              </span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </span>
           ))}
         </div>
@@ -205,7 +206,9 @@ function DependencyPanel({ taskId, blockedBy, onAdd, onRemove, navigate }) {
           <span style={{ fontFamily: FONT, fontSize: '0.7rem', color: '#555', backgroundColor: STATUS_COLORS[b.status] || '#e9e9e9', padding: '2px 6px', borderRadius: 10 }}>
             {STATUS_LABELS[b.status] || b.status}
           </span>
-          <span onClick={() => onRemove(b.id)} title="Remove dependency" style={{ cursor: 'pointer', color: '#999', fontSize: '0.85rem', fontWeight: 'bold', marginLeft: 2 }}>×</span>
+          <button onClick={() => onRemove(b.id)} aria-label="Remove dependency" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: 2, display: 'flex', alignItems: 'center', marginLeft: 2 }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       ))}
 
@@ -286,7 +289,9 @@ function TaskDependencyInput({ excludeId, selected, onAdd, onRemove }) {
           {selected.map(t => (
             <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: t.isCompleted ? '#d1e7dd' : '#f8d7da', color: t.isCompleted ? '#0a3622' : '#7c1d24', padding: '4px 12px', borderRadius: 20, fontSize: '0.8rem', fontFamily: FONT }}>
               {!t.isCompleted && <LockIcon size={11} color="#7c1d24" />}{t.title}
-              <span onClick={() => onRemove(t.id)} style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', opacity: 0.7 }}>×</span>
+              <button onClick={() => onRemove(t.id)} aria-label={`Remove dependency: ${t.title}`} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.7, padding: 0, display: 'flex', alignItems: 'center', color: 'inherit' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </span>
           ))}
         </div>
@@ -510,7 +515,7 @@ export default function DetailView() {
       <div style={{ display: 'flex', minHeight: '100vh' }}>
         <Sidebar navigate={navigate} user={user} isAdmin={isAdmin} onLogout={async () => { await logout(); navigate('/'); }} />
         <main style={{ flex: 1, backgroundColor: '#8a9e6e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ fontFamily: FONT, fontSize: '1.2rem', color: '#111' }}>Loading...</p>
+          <div style={{ display: 'inline-block', width: 28, height: 28, border: '3px solid #ccc', borderTopColor: '#333', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} aria-label="Loading" />
         </main>
       </div>
     )
@@ -624,9 +629,9 @@ export default function DetailView() {
         {mode === 'view' && task && (
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
-              <div onClick={handleToggle} title="Toggle completion" style={{ width: 30, height: 30, border: '3px solid #111', borderRadius: 4, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', backgroundColor: 'transparent' }}>
-                {task.isCompleted ? '✓' : ''}
-              </div>
+              <button onClick={handleToggle} aria-label={task.isCompleted ? 'Mark incomplete' : 'Mark complete'} style={{ width: 30, height: 30, border: '3px solid #111', borderRadius: 4, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', padding: 0 }}>
+                {task.isCompleted && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+              </button>
               <h1 style={{ fontFamily: FONT, fontSize: '2rem', fontWeight: 900, color: '#111', textDecoration: 'underline', margin: 0, textDecorationLine: task.isCompleted ? 'line-through underline' : 'underline' }}>
                 {task.title}
               </h1>

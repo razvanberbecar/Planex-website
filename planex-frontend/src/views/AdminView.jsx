@@ -17,8 +17,8 @@ const ROLE_COLORS = {
 }
 
 const FLAG_STYLES = {
-  toxic_chat:   { bg: '#f8d7da', color: '#7c1d24', label: '💬 Toxic chat' },
-  brute_force:  { bg: '#fff3cd', color: '#664d03', label: '🔒 Brute force' },
+  toxic_chat:   { bg: '#f8d7da', color: '#7c1d24', label: 'Toxic chat' },
+  brute_force:  { bg: '#fff3cd', color: '#664d03', label: 'Brute force' },
 }
 
 function RoleBadge({ name }) {
@@ -105,7 +105,12 @@ function UsersTab({ currentUser }) {
       {toast && <div style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#0a3622', backgroundColor: '#d1e7dd', padding: '8px 16px', borderRadius: 8, marginBottom: 16 }}>{toast}</div>}
       {error && <div style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#7c1d24', backgroundColor: '#f8d7da', padding: '8px 16px', borderRadius: 8, marginBottom: 16 }}>{error}</div>}
 
-      {loading ? <p style={{ fontFamily: FONT, color: '#444' }}>Loading...</p> : (
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 18, height: 18, border: '2px solid #ccc', borderTopColor: '#333', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} aria-label="Loading" />
+          <span style={{ fontFamily: FONT, color: '#444', fontSize: '0.9rem' }}>Loading users...</span>
+        </div>
+      ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
             <thead>
@@ -232,13 +237,20 @@ function FlaggedTab() {
       {toast && <div style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#0a3622', backgroundColor: '#d1e7dd', padding: '8px 16px', borderRadius: 8, marginBottom: 16 }}>{toast}</div>}
       {error && <div style={{ fontFamily: FONT, fontSize: '0.85rem', color: '#7c1d24', backgroundColor: '#f8d7da', padding: '8px 16px', borderRadius: 8, marginBottom: 16 }}>{error}</div>}
 
-      {loading ? <p style={{ fontFamily: FONT, color: '#444' }}>Loading...</p> : users.length === 0 ? (
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 18, height: 18, border: '2px solid #ccc', borderTopColor: '#333', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} aria-label="Loading" />
+          <span style={{ fontFamily: FONT, color: '#444', fontSize: '0.9rem' }}>Loading flags...</span>
+        </div>
+      ) : users.length === 0 ? (
         <div style={{
           fontFamily: FONT, color: '#444', fontSize: '0.9rem',
           backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 12,
           padding: '40px 24px', textAlign: 'center',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
         }}>
-          ✅ No flagged users — everything looks clean.
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a3622" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          No flagged users — everything looks clean.
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -344,13 +356,14 @@ export default function AdminView() {
           display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 20px',
           borderBottom: '1px solid rgba(255,255,255,0.1)',
         }}>
-          <div style={{
+          <button onClick={() => navigate('/tasks')} aria-label="Back to tasks" style={{
             width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0,
+            border: 'none', color: '#e2e8f0', cursor: 'pointer',
           }}>
             {currentUser?.Name ? currentUser.Name.charAt(0).toUpperCase() : '?'}
-          </div>
+          </button>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {currentUser?.Name || 'Unknown'}

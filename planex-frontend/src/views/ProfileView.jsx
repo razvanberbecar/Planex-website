@@ -5,6 +5,19 @@ import { useAuth } from '../context/AuthContext'
 
 const FONT = '"Courier New", Courier, monospace'
 
+function EyeIcon({ open }) {
+  return open ? (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
+
 const priorityColors = {
   High:   { bg: '#f8d7da', color: '#7c1d24' },
   Medium: { bg: '#fff3cd', color: '#664d03' },
@@ -47,6 +60,9 @@ export default function ProfileView() {
   const [pwError, setPwError]       = useState('')
   const [pwSuccess, setPwSuccess]   = useState('')
   const [pwSaving, setPwSaving]     = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew]         = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   // ── Stats ─────────────────────────────────────────────
   const [stats, setStats]       = useState(null)
@@ -105,9 +121,9 @@ export default function ProfileView() {
       {/* SIDEBAR */}
       <aside style={{ width: 210, minWidth: 210, backgroundColor: '#2d3748', color: '#e2e8f0', display: 'flex', flexDirection: 'column', padding: '20px 0', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0 }}>
+          <button onClick={() => navigate('/profile')} aria-label="View profile" style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0, border: 'none', color: '#e2e8f0', cursor: 'pointer' }}>
             {user?.Name ? user.Name.charAt(0).toUpperCase() : '?'}
-          </div>
+          </button>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.Name || 'Unknown'}</div>
             <div style={{ fontSize: '0.65rem', color: '#8a9e6e', textTransform: 'uppercase', letterSpacing: 1 }}>{user?.role?.Name || 'user'}</div>
@@ -177,9 +193,21 @@ export default function ProfileView() {
               <div style={{ backgroundColor: '#f5f5d0', borderRadius: 18, padding: '24px 28px' }}>
                 <p style={{ fontFamily: FONT, fontSize: '0.75rem', fontWeight: 'bold', color: '#555', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 14px 0' }}>Change password</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <input style={inputStyle} type="password" placeholder="Current password" value={pwCurrent} onChange={e => { setPwCurrent(e.target.value); setPwError('') }} />
-                  <input style={inputStyle} type="password" placeholder="New password (min 6 chars)" value={pwNew} onChange={e => { setPwNew(e.target.value); setPwError('') }} />
-                  <input style={inputStyle} type="password" placeholder="Confirm new password" value={pwConfirm} onChange={e => { setPwConfirm(e.target.value); setPwError('') }} />
+                  {[
+                    { id: 'pw-current', label: 'Current Password', value: pwCurrent, set: setPwCurrent, show: showCurrent, toggle: () => setShowCurrent(v => !v) },
+                    { id: 'pw-new',     label: 'New Password',     value: pwNew,     set: setPwNew,     show: showNew,     toggle: () => setShowNew(v => !v) },
+                    { id: 'pw-confirm', label: 'Confirm Password', value: pwConfirm, set: setPwConfirm, show: showConfirm, toggle: () => setShowConfirm(v => !v) },
+                  ].map(({ id, label, value, set, show, toggle }) => (
+                    <div key={id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label htmlFor={id} style={{ fontFamily: FONT, fontSize: '0.7rem', fontWeight: 'bold', color: '#555', textTransform: 'uppercase', letterSpacing: '0.06em', marginLeft: 14 }}>{label}</label>
+                      <div style={{ position: 'relative' }}>
+                        <input id={id} style={{ ...inputStyle, paddingRight: 44 }} type={show ? 'text' : 'password'} value={value} onChange={e => { set(e.target.value); setPwError('') }} />
+                        <button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={toggle} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', display: 'flex', alignItems: 'center', padding: 4 }}>
+                          <EyeIcon open={show} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                   {pwError   && <p style={{ fontFamily: FONT, fontSize: '0.8rem', color: '#7c1d24', margin: '0 0 0 4px' }}>{pwError}</p>}
                   {pwSuccess && <p style={{ fontFamily: FONT, fontSize: '0.8rem', color: '#0a3622', margin: '0 0 0 4px' }}>{pwSuccess}</p>}
                   <button onClick={handleChangePassword} disabled={pwSaving} style={{ ...btnStyle, alignSelf: 'flex-end' }}>
