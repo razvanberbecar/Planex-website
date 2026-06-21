@@ -66,8 +66,12 @@ button:not(:disabled):active {
 input:focus,
 textarea:focus,
 select:focus {
-  box-shadow: 0 0 0 3px rgba(58, 69, 88, 0.25);
+  box-shadow: 0 0 0 3px rgba(138, 158, 110, 0.55);
   transition: box-shadow 0.2s ease;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 

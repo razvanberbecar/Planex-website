@@ -4,11 +4,26 @@ import { useAuth } from '../context/AuthContext'
 
 const FONT = '"Courier New", Courier, monospace'
 
+function EyeIcon({ open }) {
+  return open ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
+
 export default function Login() {
   const navigate = useNavigate()
   const { login, isAuthenticated, loading: authLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -52,24 +67,42 @@ export default function Login() {
           <p style={styles.subtitle}>Please login below</p>
 
           {/* ── Local Login ── */}
-          <input
-            style={styles.input}
-            type="email"
-            placeholder="Enter email address"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setError('') }}
-            autoComplete="email"
-          />
+          <div style={styles.fieldGroup}>
+            <label htmlFor="login-email" style={styles.label}>Email Address</label>
+            <input
+              id="login-email"
+              style={styles.input}
+              type="email"
+              placeholder="Enter email address"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError('') }}
+              autoComplete="email"
+            />
+          </div>
 
-          <input
-            style={styles.input}
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={e => { setPassword(e.target.value); setError('') }}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            autoComplete="current-password"
-          />
+          <div style={styles.fieldGroup}>
+            <label htmlFor="login-password" style={styles.label}>Password</label>
+            <div style={styles.passwordWrapper}>
+              <input
+                id="login-password"
+                style={{ ...styles.input, paddingRight: 48 }}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter password"
+                value={password}
+                onChange={e => { setPassword(e.target.value); setError('') }}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword(v => !v)}
+                style={styles.eyeBtn}
+              >
+                <EyeIcon open={showPassword} />
+              </button>
+            </div>
+          </div>
 
           {error && <p style={styles.error}>{error}</p>}
 
@@ -144,6 +177,38 @@ const styles = {
     color: '#111',
     margin: '0 0 8px 0',
     letterSpacing: '0.05em',
+  },
+  fieldGroup: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  label: {
+    fontFamily: FONT,
+    fontSize: '0.72rem',
+    fontWeight: 'bold',
+    color: '#333',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    marginLeft: 14,
+  },
+  passwordWrapper: {
+    position: 'relative',
+    width: '100%',
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#666',
+    display: 'flex',
+    alignItems: 'center',
+    padding: 4,
   },
   input: {
     width: '100%',

@@ -209,13 +209,13 @@ export default function MasterView() {
       {/* SIDEBAR */}
       <aside style={{ width: 210, minWidth: 210, backgroundColor: '#2d3748', color: '#e2e8f0', display: 'flex', flexDirection: 'column', padding: '20px 0', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div
+          <button
             onClick={() => navigate('/profile')}
-            title="View profile"
-            style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0, cursor: 'pointer' }}
+            aria-label="View profile"
+            style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#4a5568', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0, cursor: 'pointer', border: 'none', color: '#e2e8f0' }}
           >
             {user?.Name ? user.Name.charAt(0).toUpperCase() : '?'}
-          </div>
+          </button>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.Name || 'Unknown'}
@@ -300,7 +300,9 @@ export default function MasterView() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#444' }}>Loading...</td></tr>
+                <tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#444' }}>
+                  <div style={{ display: 'inline-block', width: 20, height: 20, border: '2px solid #ccc', borderTopColor: '#333', borderRadius: '50%', animation: 'spin 0.7s linear infinite', verticalAlign: 'middle' }} aria-label="Loading" />
+                </td></tr>
               ) : sortedTasks.length === 0 ? (
                 <tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#444' }}>
                   {search ? `No tasks matching "${search}".` : 'No tasks found.'}
@@ -385,9 +387,10 @@ export default function MasterView() {
           <button
             onClick={handleBulkComplete}
             disabled={bulkLoading}
-            style={{ fontFamily: FONT, fontSize: '0.8rem', padding: '8px 18px', borderRadius: 30, border: '1px solid #8a9e6e', backgroundColor: 'transparent', color: '#8a9e6e', cursor: 'pointer' }}
+            style={{ fontFamily: FONT, fontSize: '0.8rem', padding: '8px 18px', borderRadius: 30, border: '1px solid #8a9e6e', backgroundColor: 'transparent', color: '#8a9e6e', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            ✓ Complete
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Complete
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -412,16 +415,19 @@ export default function MasterView() {
           <button
             onClick={handleBulkDelete}
             disabled={bulkLoading}
-            style={{ fontFamily: FONT, fontSize: '0.8rem', padding: '8px 18px', borderRadius: 30, border: '1px solid #f87171', backgroundColor: 'transparent', color: '#f87171', cursor: 'pointer' }}
+            aria-label="Delete selected tasks"
+            style={{ fontFamily: FONT, fontSize: '0.8rem', padding: '8px 18px', borderRadius: 30, border: '1px solid #f87171', backgroundColor: 'transparent', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            🗑 Delete
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Delete
           </button>
 
           <button
             onClick={() => setSelected(new Set())}
-            style={{ fontFamily: FONT, fontSize: '0.8rem', padding: '8px 14px', borderRadius: 30, border: 'none', backgroundColor: 'transparent', color: '#aaa', cursor: 'pointer' }}
+            aria-label="Clear selection"
+            style={{ fontFamily: FONT, fontSize: '0.8rem', padding: '8px 14px', borderRadius: 30, border: 'none', backgroundColor: 'transparent', color: '#aaa', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
       )}

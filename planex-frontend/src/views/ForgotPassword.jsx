@@ -39,14 +39,18 @@ export default function ForgotPassword() {
         <div style={styles.body}>
           <p style={styles.subtitle}>Enter your email to receive a reset link</p>
 
-          <input
-            style={styles.input}
-            type="email"
-            placeholder="Enter email address"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setError(''); setMessage('') }}
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          />
+          <div style={styles.fieldGroup}>
+            <label htmlFor="forgot-email" style={styles.label}>Email Address</label>
+            <input
+              id="forgot-email"
+              style={styles.input}
+              type="email"
+              placeholder="Enter email address"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(''); setMessage('') }}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+            />
+          </div>
 
           {error && <p style={styles.error}>{error}</p>}
           {message && <p style={styles.success}>{message}</p>}
@@ -116,6 +120,21 @@ const styles = {
     margin: '0 0 8px 0',
     letterSpacing: '0.05em',
     textAlign: 'center',
+  },
+  fieldGroup: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  label: {
+    fontFamily: FONT,
+    fontSize: '0.72rem',
+    fontWeight: 'bold',
+    color: '#333',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    marginLeft: 14,
   },
   input: {
     width: '100%',
